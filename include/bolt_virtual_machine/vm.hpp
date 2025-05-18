@@ -1,11 +1,11 @@
 #ifndef BVM_VIRTUAL_MACHINE_H
 #define BVM_VIRTUAL_MACHINE_H
 
-#define STACK_SIZE 4096
+#define STACK_SIZE (1 << 12)
 
 #include <cstdint>
 #include <vector>
-
+#include "instruction.hpp"
 
 namespace BVM {
 
@@ -16,26 +16,29 @@ namespace BVM {
         Ok
     };
 
-    union Word {
-        uint8_t as_u8;
-        uint16_t as_u16;
-        uint32_t as_u32;
-        uint64_t as_u64;
-        int8_t as_i8;
-        int16_t as_i16;
-        int32_t as_i32;
-        int64_t as_i64;
-        float as_f32;
-        double as_f64;
-    };
+
 
     class VirtualMachine {
         private:
-            Word stack[STACK_SIZE];
+            uint64_t stack_[STACK_SIZE];
+            size_t ip_ = 0;
+            int16_t sp_ = -1;
+            int16_t lp_ = -1;
+            int16_t fp_ = -1;
+            const std::vector<uint32_t>* program_;
         public:
             VirtualMachine();
             ~VirtualMachine();
-            Interrupt execute(const std::vector<uint32_t>& program);
+            void load_program(const std::vector<uint32_t>* program);
+            uint32_t fetch() noexcept;
+            Opcode decode_op(uint32_t inst) noexcept;
+            uint8_t decode_rd(uint32_t inst) noexcept;
+            uint8_t decode_rt(uint32_t inst) noexcept;
+            uint8_t decode_rs(uint32_t inst) noexcept;
+            inline uint64_t get_register_value(uint8_t r) noexcept;
+            inline void set_register_value(uint8_t r, uint64_t value) noexcept;
+            Interrupt execute();
+
     };
 }
 

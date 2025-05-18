@@ -4,9 +4,14 @@
 namespace BVM {
     enum class Opcode {
         OpAdd,
-        OpDiv,
+        OpFadd,
+        OpSdiv,
+        OpUdiv,
+        OpFdiv,
         OpMul,
+        OpFmul,
         OpSub,
+        OpFsub,
         OpMov,
         OpSchedule,
     };

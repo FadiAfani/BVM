@@ -5,15 +5,14 @@
 
 //NOTE: mapping each instruction to a function seems to be easier to write and read - might replace these functionswith a single emit_binop function
 
-#define EMIT_BINOP_DEF(op) \
-    static uint32_t emit_##op(uint8_t rd, uint8_t rt, uint8_t rs);
+#define EMIT_BINOP_DEF(opname) \
+    static uint32_t opname(uint8_t rd, uint8_t rt, uint8_t rs);
 
 namespace BVM {
 
     class Emitter {
 
         public:
-            Emitter();
             EMIT_BINOP_DEF(mul);
             EMIT_BINOP_DEF(fmul);
             EMIT_BINOP_DEF(sdiv);

@@ -1,9 +1,10 @@
 #add_library(bolt_virtual_machine STATIC ${BVM_SOURCES})
 
 
-file(GLOB_RECURSE SOURCES "*.cpp")
+file(GLOB_RECURSE BVM_SOURCES "*.cpp")
 
-add_executable(bvm ${SOURCES})
+add_executable(bvm ${BVM_SOURCES})
+add_library(bolt_vm ${BVM_SOURCES})
 
-#target_include_directories(bvm PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(bolt_vm PUBLIC ${PROJECT_SOURCE_DIR}/include)
 

@@ -3,10 +3,20 @@
 
 #include <string>
 #define STACK_SIZE (1 << 12)
+#define METADATA_SIZE 3
+
+/** Stack Layout (top to bottom)
+ * old_fp
+ * ret_addr
+ * callable_ref
+ * locals
+ */
+
 
 #include <cstdint>
 #include <vector>
 #include "instruction.hpp"
+#include <memory>
 
 namespace BVM {
 
@@ -45,20 +55,32 @@ namespace BVM {
             size_t ip_ = 0;
             int16_t sp_ = STACK_SIZE;
             int16_t fp_ = STACK_SIZE;
-            std::vector<Callable> callables_;
+            std::vector<std::unique_ptr<Callable>> callables_;
         public:
             VirtualMachine();
             ~VirtualMachine();
             void load_program(std::vector<uint32_t> program);
+            inline void load_callable(std::unique_ptr<Callable> callable) {
+                callables_.push_back(std::move(callable));
+            }
+            void setup_entry_point();
+            inline Callable* get_callable(size_t id) {
+                return callables_.at(id).get();
+            }
+            inline uint64_t get_stack_entry(size_t entry) {
+                return stack_[entry];
+            }
 
             // god help us all if the compiler decides not to inline these
+
+     
 
             inline uint32_t fetch() noexcept {
                 return reinterpret_cast<Callable*>(stack_[fp_])->code[ip_++];
             }
 
             inline Opcode decode_op(uint32_t inst) noexcept {
-                return static_cast<Opcode>(inst);
+                return static_cast<Opcode>(static_cast<uint8_t>(inst));
             }
 
             inline uint8_t decode_rd(uint32_t inst) noexcept {
@@ -73,15 +95,21 @@ namespace BVM {
                 return (uint8_t) (inst >> 24);
             }
 
-            inline uint64_t get_register_value(uint8_t r) noexcept { return stack_[fp_ - 3 - r]; }
+            inline uint64_t get_register_value(uint8_t r) noexcept { return stack_[fp_ - METADATA_SIZE - r]; }
 
             inline void set_register_value(uint8_t r, uint64_t value) noexcept {
-                stack_[fp_ - 3 - r] = value;
+                stack_[fp_ - METADATA_SIZE - r] = value;
             }
 
             Interrupt execute(uint32_t inst);
             void run();
             void handle_interrupt(Interrupt interrupt);
+            inline void push(uint64_t value) {
+                stack_[--sp_] = value;
+            }
+            inline uint64_t pop() {
+                return stack_[sp_++];
+            }
 
     };
 }

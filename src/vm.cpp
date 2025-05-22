@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <stdexcept>
 
+
 #define BINARY_OP(inst, value)  \
     rd = decode_rd(inst); \
     rt = decode_rt(inst); \
@@ -17,18 +18,18 @@ namespace BVM {
     VirtualMachine::~VirtualMachine() {}
 
 
-    void VirtualMachine::load_program(std::vector<uint32_t> program) {
-        Callable main = {1, "main", std::move(program)};
-        callables_.push_back(main);
+    void VirtualMachine::setup_entry_point() {
+        Callable* main = callables_.at(0).get();
+        push(std::bit_cast<uint64_t>(static_cast<int64_t>(-1)));
+        push(0);
+        push(std::bit_cast<uint64_t>(main));
         fp_ = STACK_SIZE - 1;
-        sp_ -= main.n_locals + 3; // metadata + prev_fp + return addr
+        sp_ -= main->n_locals; // callable_ref + prev_fp + return addr
 
     };
 
-
-
     void VirtualMachine::handle_interrupt(Interrupt interrupt) {
-
+        return;
     }
 
 

@@ -3,15 +3,34 @@
 #include <gtest/gtest.h>
 
 BVM::VirtualMachine vm;
-const uint8_t rd = 0, rt = 0, rs = 0;
+const uint8_t rd = 0, rt = 1, rs = 2;
 
 #include <cstdint>
 
-TEST(InstructionTests, TestAdd) {
-    std::vector<uint32_t> program = {
-        BVM::Emitter::add(rd, rt, rs)
-    };
-    vm.load_program(program);
+class InstructionTests: public ::testing::Test {
+protected:
+    void SetUp() override {
+        std::unique_ptr<BVM::Callable> main_func = std::make_unique<BVM::Callable>();
+        main_func->name = "main";
+        main_func->n_locals = 3;
+        vm.load_callable(std::move(main_func));
+        vm.setup_entry_point();
+    }
+
+
+    int counter;
+};
+
+
+TEST_F(InstructionTests, TestSetup) {
+    EXPECT_EQ(vm.get_stack_entry(STACK_SIZE - 1), -1);
+    EXPECT_EQ(vm.get_stack_entry(STACK_SIZE - 2), 0);
+    uint64_t main_func = std::bit_cast<uint64_t>(vm.get_callable(0));
+    uint64_t ref = vm.get_stack_entry(STACK_SIZE - 3);
+    EXPECT_EQ(ref, main_func);
+}
+
+TEST_F(InstructionTests, TestAdd) {
     vm.set_register_value(rt, 1);
     vm.set_register_value(rs, 1);
     BVM::Interrupt interrupt = vm.execute(BVM::Emitter::add(rd, rt, rs));

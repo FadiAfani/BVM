@@ -3,7 +3,7 @@
 
 #define EMIT_BINOP_IMPL(opname, op) \
     uint32_t Emitter::opname(uint8_t rd, uint8_t rt, uint8_t rs) { \
-        return static_cast<uint8_t>(op) | rd >> 8 | rt >> 16 | rs >> 24; \
+        return static_cast<uint8_t>(op) | rd << 8 | rt << 16 | rs << 24; \
     } \
 
 namespace BVM {

@@ -47,15 +47,25 @@ namespace BVM {
         std::vector<uint32_t> code;
     };
 
+    struct BVMObject {
+        size_t start;
+        size_t len;
+    };
+
 
     class VirtualMachine {
         private:
-            // maybe a union is a bit cleaner compared to a u64..
+            /* maybe a union is a bit cleaner compared to a u64..
+             * u64s can enable support for smaller types (u8, u16 ...)
+             * without type promotion by value packing
+             * which might be hindered by the use of a union 
+             */
             uint64_t stack_[STACK_SIZE];
             size_t ip_ = 0;
             int16_t sp_ = STACK_SIZE;
             int16_t fp_ = STACK_SIZE;
             std::vector<std::unique_ptr<Callable>> callables_;
+            uint8_t* heap = nullptr;
         public:
             VirtualMachine();
             ~VirtualMachine();
@@ -72,9 +82,6 @@ namespace BVM {
             }
 
             // god help us all if the compiler decides not to inline these
-
-     
-
             inline uint32_t fetch() noexcept {
                 return reinterpret_cast<Callable*>(stack_[fp_])->code[ip_++];
             }
@@ -110,6 +117,8 @@ namespace BVM {
             inline uint64_t pop() {
                 return stack_[sp_++];
             }
+
+
 
     };
 }

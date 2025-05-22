@@ -8,17 +8,15 @@ const uint8_t rd = 0, rt = 1, rs = 2;
 #include <cstdint>
 
 class InstructionTests: public ::testing::Test {
-protected:
-    void SetUp() override {
-        std::unique_ptr<BVM::Callable> main_func = std::make_unique<BVM::Callable>();
-        main_func->name = "main";
-        main_func->n_locals = 3;
-        vm.load_callable(std::move(main_func));
-        vm.setup_entry_point();
-    }
+    protected:
+        void SetUp() override {
+            std::unique_ptr<BVM::Callable> main_func = std::make_unique<BVM::Callable>();
+            main_func->name = "main";
+            main_func->n_locals = 3;
+            vm.load_callable(std::move(main_func));
+            vm.setup_entry_point();
+        }
 
-
-    int counter;
 };
 
 
@@ -36,6 +34,21 @@ TEST_F(InstructionTests, TestAdd) {
     BVM::Interrupt interrupt = vm.execute(BVM::Emitter::add(rd, rt, rs));
     EXPECT_EQ(interrupt, BVM::Interrupt::Ok);
     EXPECT_EQ(vm.get_register_value(rd), 2);
+}
+
+TEST_F(InstructionTests, TestFadd) {
+    vm.set_register_value(rt, std::bit_cast<uint64_t>(2.5));
+    vm.set_register_value(rs, std::bit_cast<uint64_t>(2.6));
+    BVM::Interrupt interrupt = vm.execute(BVM::Emitter::fadd(rd, rt, rs));
+    EXPECT_EQ(interrupt, BVM::Interrupt::Ok);
+    EXPECT_EQ(vm.get_register_value(rd), std::bit_cast<uint64_t>(2.5 + 2.6));
+}
+
+TEST_F(InstructionTests, TestMov) {
+    vm.set_register_value(rt, 10);
+    BVM::Interrupt interrupt = vm.execute(BVM::Emitter::mov(rd, rt));
+    EXPECT_EQ(interrupt, BVM::Interrupt::Ok);
+    EXPECT_EQ(vm.get_register_value(rd), 10);
 }
 
 int main(int argc, char** argv) {

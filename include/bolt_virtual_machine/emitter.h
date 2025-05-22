@@ -22,7 +22,8 @@ namespace BVM {
             EMIT_BINOP_DEF(fsub);
             EMIT_BINOP_DEF(add);
             EMIT_BINOP_DEF(fadd);
-            static uint32_t emit_mov(uint8_t rd, uint8_t rt);
+            static uint32_t mov(uint8_t rd, uint8_t rt);
+            static uint32_t ret();
     };
 
 }

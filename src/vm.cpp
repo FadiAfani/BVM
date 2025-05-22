@@ -1,5 +1,4 @@
 #include "bolt_virtual_machine/vm.hpp"
-#include "bolt_virtual_machine/emitter.h"
 #include "bolt_virtual_machine/instruction.hpp"
 #include <bit>
 #include <cstdint>
@@ -53,7 +52,7 @@ namespace BVM {
                 rtv = get_register_value(rt);
                 rsv = get_register_value(rs);
                 BINARY_OP(inst, (std::bit_cast<uint64_t>(
-                                static_cast<double>(rtv) * static_cast<double>(rsv))
+                                std::bit_cast<double>(rtv) * std::bit_cast<double>(rsv))
                             )
                 );
                 break;
@@ -62,7 +61,7 @@ namespace BVM {
                 rtv = get_register_value(rt);
                 rsv = get_register_value(rs);
                 BINARY_OP(inst, (std::bit_cast<uint64_t>(
-                                static_cast<int64_t>(rtv) / static_cast<int64_t>(rsv))
+                                std::bit_cast<int64_t>(rtv) / std::bit_cast<int64_t>(rsv))
                             )
                         );
                 break;
@@ -77,7 +76,7 @@ namespace BVM {
                 rtv = get_register_value(rt);
                 rsv = get_register_value(rs);
                 BINARY_OP(inst, (std::bit_cast<uint64_t>(
-                                static_cast<double>(rtv) / static_cast<double>(rsv))
+                                std::bit_cast<double>(rtv) / std::bit_cast<double>(rsv))
                             )
                 );
                 break;
@@ -92,7 +91,7 @@ namespace BVM {
                 rtv = get_register_value(rt);
                 rsv = get_register_value(rs);
                 BINARY_OP(inst, (std::bit_cast<uint64_t>(
-                                static_cast<double>(rtv) - static_cast<double>(rsv))
+                                std::bit_cast<double>(rtv) - std::bit_cast<double>(rsv))
                             )
                 );
                 break;
@@ -105,18 +104,26 @@ namespace BVM {
                 rtv = get_register_value(rt);
                 rsv = get_register_value(rs);
                 BINARY_OP(inst, (std::bit_cast<uint64_t>(
-                                static_cast<double>(rtv) + static_cast<double>(rsv))
+                                std::bit_cast<double>(rtv) + std::bit_cast<double>(rsv))
                             )
                 );
                 break;
             case Opcode::OpMov:
                 rd = decode_rd(inst);
-                rs = decode_rs(inst);
-                set_register_value(rd, get_register_value(rs));
+                rt = decode_rt(inst);
+                set_register_value(rd, get_register_value(rt));
                 break;
+
+            case Opcode::OpRet:
+                ip_ = stack_[fp_ + 1];
+                sp_ = fp_;
+                fp_ = stack_[fp_];
+                break;
+
             case Opcode::OpSchedule:
                 throw std::runtime_error("Not Implemented\n");
                 break;
+
         }
         return Interrupt::Ok;
     }

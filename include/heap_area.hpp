@@ -3,10 +3,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <list>
 namespace BVM {
 
     struct Chunk {
-        uint8_t* offset;
+        size_t offset;
         size_t len;
         bool is_free;
     };
@@ -15,6 +16,7 @@ namespace BVM {
         private:
             uint8_t* mem;
             size_t capacity;
+            std::list<Chunk> free_list;
 
         public:
             HeapArea();

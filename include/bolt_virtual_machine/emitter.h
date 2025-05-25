@@ -14,14 +14,9 @@ namespace BVM {
 
         public:
             EMIT_BINOP_DEF(mul);
-            EMIT_BINOP_DEF(fmul);
-            EMIT_BINOP_DEF(sdiv);
-            EMIT_BINOP_DEF(udiv);
-            EMIT_BINOP_DEF(fdiv);
+            EMIT_BINOP_DEF(div);
             EMIT_BINOP_DEF(sub);
-            EMIT_BINOP_DEF(fsub);
             EMIT_BINOP_DEF(add);
-            EMIT_BINOP_DEF(fadd);
             static uint32_t mov(uint8_t rd, uint8_t rt);
             static uint32_t ret();
     };

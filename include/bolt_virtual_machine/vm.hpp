@@ -24,32 +24,44 @@ namespace BVM {
         StackOverFlow,
         StackUnderFlow,
         DivisionByZero,
+        IncompatibleTypes,
         Ok
     };
 
-    // not currently used
-    union BoltValue {
-        uint8_t as_u8;
-        uint16_t as_u16;
-        uint32_t as_u32;
-        uint64_t as_u64;
-        int8_t as_i8;
-        int16_t as_i16;
-        int32_t as_i32;
-        int64_t as_i64;
-        float as_f32;
-        double as_f64;
+    struct BoltValue;
+
+    using Cons = std::pair<BoltValue, BoltValue>;
+
+    enum class BoltType {
+        Integer,
+        Float,
+        Cons,
+        Symbol,
+        Nil,
+        Function,
+
     };
 
     struct Callable {
         int n_locals;
+        int row;
+        int col;
         std::string name;
         std::vector<uint32_t> code;
+        std::vector<std::pair<int, int>> locals_pos;
+
     };
 
-    struct BVMObject {
-        size_t start;
-        size_t len;
+    // not currently used
+    struct BoltValue {
+        union {
+            int64_t as_int;
+            double as_double;
+            Cons* as_cons;
+            char* as_symbol;
+            Callable* as_func;
+        };
+        BoltType type;
     };
 
 
@@ -60,12 +72,11 @@ namespace BVM {
              * without type promotion by value packing
              * which might be hindered by the use of a union 
              */
-            uint64_t stack_[STACK_SIZE];
+            BoltValue stack_[STACK_SIZE];
             size_t ip_ = 0;
             int16_t sp_ = STACK_SIZE;
             int16_t fp_ = STACK_SIZE;
             std::vector<std::unique_ptr<Callable>> callables_;
-            uint8_t* heap = nullptr;
         public:
             VirtualMachine();
             ~VirtualMachine();
@@ -77,13 +88,13 @@ namespace BVM {
             inline Callable* get_callable(size_t id) {
                 return callables_.at(id).get();
             }
-            inline uint64_t get_stack_entry(size_t entry) {
+            inline BoltValue get_stack_entry(size_t entry) {
                 return stack_[entry];
             }
 
             // god help us all if the compiler decides not to inline these
             inline uint32_t fetch() noexcept {
-                return reinterpret_cast<Callable*>(stack_[fp_])->code[ip_++];
+                return stack_[fp_].as_func->code[ip_++];
             }
 
             inline Opcode decode_op(uint32_t inst) noexcept {
@@ -102,24 +113,22 @@ namespace BVM {
                 return (uint8_t) (inst >> 24);
             }
 
-            inline uint64_t get_register_value(uint8_t r) noexcept { return stack_[fp_ - METADATA_SIZE - r]; }
+            inline BoltValue get_register_value(uint8_t r) noexcept { return stack_[fp_ - METADATA_SIZE - r]; }
 
-            inline void set_register_value(uint8_t r, uint64_t value) noexcept {
+            inline void set_register_value(uint8_t r, BoltValue value) noexcept {
                 stack_[fp_ - METADATA_SIZE - r] = value;
             }
 
             Interrupt execute(uint32_t inst);
             void run();
             void handle_interrupt(Interrupt interrupt);
-            inline void push(uint64_t value) {
+            inline void push(BoltValue value) {
                 stack_[--sp_] = value;
             }
-            inline uint64_t pop() {
+            inline BoltValue pop() {
                 return stack_[sp_++];
             }
-
-
-
+                    
     };
 }
 

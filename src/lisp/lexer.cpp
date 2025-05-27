@@ -81,6 +81,17 @@ namespace Lisp {
                             t.value += c;
                             c = text_[++i];
                         }
+                        if (c == '.') {
+                            t.value += c;
+                            c = text_[++i]; // skip '.'
+                            t.type = TokenType::Float;
+                            while (i < text_.length() && std::isdigit(c)) {
+                                t.value += c;
+                                c = text_[++i];
+                            }
+                        } else {
+                            t.type = TokenType::Integer;
+                        }
                     } else if (std::isalpha(c)) {
                         while (i < text_.length() && (
                         std::isalnum(c) && !reserved_symbols.contains(c))) {

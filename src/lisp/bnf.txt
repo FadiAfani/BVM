@@ -1,27 +1,35 @@
-program       ::= { expr }
+<program>     ::= { <expr> }
 
-expr          ::= atom
-               | list
+<expr>        ::= <atom>
+               | <list>
+               | <quoted>
 
-atom          ::= number
-               | boolean
-               | symbol
+<atom>        ::= <integer>
+               | <float>
+               | <boolean>
+               | <symbol>
 
-list          ::= "(" expr { expr } ")"
+<list>        ::= "(" { <expr> } ")"
 
-number        ::= ["+"|"-"] digit { digit }
-boolean       ::= "#t" | "#f"
+<quoted>      ::= "'" <expr>   ; e.g., '(1 2 3)
 
-symbol        ::= identifier & !keyword
+<integer>     ::= <sign>? <digit> { <digit> }
 
-identifier    ::= letter { letter | digit | special }
+<float>       ::= <sign>? <digit> { <digit> } "." <digit> { <digit> }
 
-special       ::= "+" | "-" | "*" | "/" | "!" | "?" | "=" | "<" | ">" | "_"
+<boolean>     ::= "#t" | "#f"
 
-digit         ::= "0".."9"
-letter        ::= "a".."z" | "A".."Z"
+<symbol>      ::= <identifier> ; excluding reserved <keyword>s
 
-keyword       ::= "define"
+<identifier>  ::= <letter> { <letter> | <digit> | <special> }
+
+<sign>        ::= "+" | "-"
+
+<digit>       ::= "0".."9"
+<letter>      ::= "a".."z" | "A".."Z"
+<special>     ::= "+" | "-" | "*" | "/" | "!" | "?" | "=" | "<" | ">" | "_"
+
+<keyword>     ::= "define"
                | "lambda"
                | "if"
                | "let"

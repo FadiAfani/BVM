@@ -29,12 +29,13 @@ namespace Lisp {
         Ls,
         Underscore,
         Keyword,
-        Number,
         Identifier,
         Boolean,
         Pound,
         Lparen,
-        Rparen
+        Rparen,
+        Float,
+        Integer
     };
 
     struct Token {

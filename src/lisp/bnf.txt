@@ -1,42 +1,43 @@
-<program>     ::= { <expr> }
+<program> ::= <expression>*
 
-<expr>        ::= <atom>
+<expression> ::= <atom>
                | <list>
-               | <quoted>
 
-<atom>        ::= <integer>
-               | <float>
-               | <boolean>
-               | <symbol>
+<atom> ::= <boolean>
+         | <number>
+         | <identifier>
 
-<list>        ::= "(" { <expr> } ")"
+<boolean> ::= "#t" | "#f"
 
-<quoted>      ::= "'" <expr>   ; e.g., '(1 2 3)
+<number> ::= <digit>+
 
-<integer>     ::= <sign>? <digit> { <digit> }
+<digit> ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
 
-<float>       ::= <sign>? <digit> { <digit> } "." <digit> { <digit> }
+<identifier> ::= <initial> <subsequent>*
 
-<boolean>     ::= "#t" | "#f"
+<initial> ::= <letter>
+            | <special-initial>
 
-<symbol>      ::= <identifier> ; excluding reserved <keyword>s
+<special-initial> ::= "!" | "$" | "%" | "&" | "*" | "/" | ":" | "<" | "=" | ">" | "?" | "^" | "_" | "~" | "+" | "-" | "."
 
-<identifier>  ::= <letter> { <letter> | <digit> | <special> }
+<subsequent> ::= <initial> | <digit> | <special-subsequent>
 
-<sign>        ::= "+" | "-"
+<special-subsequent> ::= "+" | "-" | "." | "@"
 
-<digit>       ::= "0".."9"
-<letter>      ::= "a".."z" | "A".."Z"
-<special>     ::= "+" | "-" | "*" | "/" | "!" | "?" | "=" | "<" | ">" | "_"
+<letter> ::= "a" | "b" | ... | "z" | "A" | "B" | ... | "Z"
 
-<keyword>     ::= "define"
-               | "lambda"
-               | "if"
-               | "let"
-               | "begin"
-               | "cond"
-               | "and"
-               | "or"
-               | "set!"
-               | "quote"
+<list> ::= "(" <expression-list> ")"
+
+<expression-list> ::= <expression> <expression-list>
+                    | ε
+
+;; Special Forms
+<expression> ::= "(" "define" <identifier> <expression> ")"
+               | "(" "define" "(" <identifier> <identifier-list> ")" <expression-list> ")"
+               | "(" "lambda" "(" <identifier-list> ")" <expression-list> ")"
+               | "(" "if" <expression> <expression> <expression> ")"
+               | "(" <expression> <expression-list> ")"
+
+<identifier-list> ::= <identifier> <identifier-list>
+                    | ε
 

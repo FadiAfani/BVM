@@ -5,6 +5,8 @@
 #include "lisp/lexer.hpp"
 namespace Lisp {
 
+    using Program = std::vector<Expr>;
+
     class Parser {
 
         private:
@@ -17,11 +19,15 @@ namespace Lisp {
             const Token& peek();
             const Token& peek(size_t n);
             inline void consume() { cur_++; }
-            void parse();
+            Program parse();
+            Symbol parse_symbol();
+            Boolean parse_boolean();
             Integer parse_integer();
             Double parse_double();
             Atom parse_atom();
             Lambda parse_lambda();
+            List parse_list();
+            Expr parse_expr();
 
 
 

@@ -17,25 +17,21 @@ namespace Lisp {
         '\'', '(', ')', '\\'
     };
 
+    const std::unordered_set<char> special_initial = {
+        '!' , '$' , '%' , '&' , '*' , '/' , ':' , '<' , '=' , '>' , '?' , '^' , '_' , '~' , '+' , '-' , '.'
+    };
+
+
+
     enum class TokenType {
-        Plus,
-        Minus,
-        Mul,
-        Div,
-        QuestionMark,
-        ExclamationMark,
-        Eq,
-        Bt,
-        Ls,
-        Underscore,
         Keyword,
         Identifier,
-        Boolean,
         Pound,
         Lparen,
         Rparen,
         Float,
-        Integer
+        Integer,
+        Eof,
     };
 
     struct Token {

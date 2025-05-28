@@ -1,5 +1,6 @@
 #include "lisp/lexer.hpp"
 #include <cctype>
+#include <stdexcept>
 
 namespace Lisp {
 
@@ -14,42 +15,6 @@ namespace Lisp {
             t.row = cur_row;
             t.col = cur_col;
             switch((c = text_[i])) {
-                case '+':
-                    t.type = TokenType::Plus;
-                    t.value = "+";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
-                case '-':
-                    t.type = TokenType::Minus;
-                    t.value = "-";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
-                case '/':
-                    t.type = TokenType::Div;
-                    t.value = "/";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
-                case '*':
-                    t.type = TokenType::Mul;
-                    t.value = "*";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
-                case '?':
-                    t.type = TokenType::QuestionMark;
-                    t.value = "?";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
-                case '!':
-                    t.type = TokenType::ExclamationMark;
-                    t.value = "!";
-                    tokens_.push_back(std::move(t));
-                    i++;
-                    break;
                 case ')':
                     t.type = TokenType::Rparen;
                     t.value = ")";
@@ -59,6 +24,12 @@ namespace Lisp {
                 case '(':
                     t.type = TokenType::Lparen;
                     t.value = "(";
+                    tokens_.push_back(std::move(t));
+                    i++;
+                    break;
+                case '#':
+                    t.type = TokenType::Pound;
+                    t.value = "#";
                     tokens_.push_back(std::move(t));
                     i++;
                     break;
@@ -92,9 +63,9 @@ namespace Lisp {
                         } else {
                             t.type = TokenType::Integer;
                         }
-                    } else if (std::isalpha(c)) {
+                    } else if (std::isalpha(c) || special_initial.contains(c)) {
                         while (i < text_.length() && (
-                        std::isalnum(c) && !reserved_symbols.contains(c))) {
+                        std::isalnum(c) || special_initial.contains(c))) {
                             t.value += c;
                             c = text_[++i];
                         }
@@ -104,12 +75,13 @@ namespace Lisp {
                             t.type = TokenType::Identifier;
                     }
                     else {
-                        throw "not a recognizable symbol: " + t.value;
+                        throw std::logic_error("not a recognizable symbol: " + std::string(1, c));
                     }
                     tokens_.push_back(std::move(t));
                     break;
 
             }
         }
+        tokens_.push_back({.type = TokenType::Eof});
     }
 }

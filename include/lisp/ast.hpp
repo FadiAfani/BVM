@@ -8,7 +8,8 @@
 namespace Lisp {
 
     enum class NodeType {
-        NumberLiteral,
+        IntegerLiteral,
+        FloatLiteral,
         BooleanLiteral,
         SymbolLiteral,
         List,
@@ -22,12 +23,14 @@ namespace Lisp {
         NodeType get_type();
     };
 
+    // maybe an atom should be a generic class 
+
     class Integer : ASTNode {
         private:
             int64_t value_;
         public:
             Integer(int64_t value);
-            int64_t get_value();
+            int64_t get_value() const;
     };
 
     class Double : ASTNode {
@@ -35,12 +38,29 @@ namespace Lisp {
             double value_;
         public:
             Double(double value);
-            double get_value();
+            double get_value() const;
+    };
+
+    class Boolean : ASTNode {
+        private:
+            bool value_;
+        public:
+            Boolean(bool value);
+            bool get_value() const;
+    };
+
+    class Symbol : ASTNode {
+        private:
+            std::string value_;
+        public:
+            Symbol(std::string value);
+            const std::string& get_value() const;
     };
 
     class List;
 
-    using Atom = std::variant<Integer, Double>;
+    // Atom should be a generic class - not sure if it can hold anything other than a single value
+    using Atom = std::variant<Integer, Double, Symbol>;
 
     using Expr = std::variant<Atom, List>;
 
@@ -52,7 +72,7 @@ namespace Lisp {
             List();
             List(std::vector<Expr> elems);
             void add_elem(Expr expr);
-            const std::vector<Expr>& get_elems();
+            const std::vector<Expr>& get_elems() const;
     };
 
     class Lambda : ASTNode {

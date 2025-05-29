@@ -2,8 +2,6 @@
 #define LIST_AST_H
 
 #include "lisp/lexer.hpp"
-#include <functional>
-#include <unordered_map>
 #include <variant>
 namespace Lisp {
 
@@ -16,55 +14,38 @@ namespace Lisp {
         QuotedExpr,
     };
 
+    class Visitor;
+
     class ASTNode {
         protected:
             NodeType type_;
-        virtual ~ASTNode() = default;
-        NodeType get_type();
-    };
-
-    // maybe an atom should be a generic class 
-
-    class Integer : ASTNode {
-        private:
-            int64_t value_;
         public:
-            Integer(int64_t value);
-            int64_t get_value() const;
+            NodeType get_type() const;
+            virtual ~ASTNode() = default;
     };
 
-    class Double : ASTNode {
+    class Atom : public ASTNode {
         private:
-            double value_;
+            std::variant<std::string, int64_t, double, bool> value_;
         public:
-            Double(double value);
-            double get_value() const;
+            Atom(std::string value, bool symbol = true);
+            Atom(int64_t value);
+            Atom(double value);
+            Atom(bool value);
+            template<typename T>
+            T& get_value() {
+                return std::get<T>(value_);
+            }
     };
 
-    class Boolean : ASTNode {
-        private:
-            bool value_;
-        public:
-            Boolean(bool value);
-            bool get_value() const;
-    };
-
-    class Symbol : ASTNode {
-        private:
-            std::string value_;
-        public:
-            Symbol(std::string value);
-            const std::string& get_value() const;
-    };
 
     class List;
 
     // Atom should be a generic class - not sure if it can hold anything other than a single value
-    using Atom = std::variant<Integer, Double, Symbol>;
 
     using Expr = std::variant<Atom, List>;
 
-    class List : ASTNode {
+    class List : public ASTNode {
         private:
             std::vector<Expr> elems_;
 
@@ -74,20 +55,6 @@ namespace Lisp {
             void add_elem(Expr expr);
             const std::vector<Expr>& get_elems() const;
     };
-
-    class Lambda : ASTNode {
-        private:
-            std::vector<std::reference_wrapper<Atom>> params;
-            std::unordered_map<std::string, const Token*> symbol_table;
-
-        public:
-            const std::unordered_map<std::string, const Token*>& get_symbol_table();
-            Lambda();
-            ~Lambda();
-    };
-
-
-
 
 }
 

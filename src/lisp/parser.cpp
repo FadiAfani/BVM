@@ -9,7 +9,7 @@ namespace Lisp {
     const Token& Parser::peek(size_t n) { return tokens_.at(cur_ + n); }
     const Token& Parser::peek() { return peek(0); }
 
-    Integer Parser::parse_integer() {
+    Atom Parser::parse_integer() {
         auto t = peek();
         if (t.type != TokenType::Integer)
             throw "unexpected token: " + t.value;
@@ -18,10 +18,10 @@ namespace Lisp {
         for (char c : t.value) {
             res = res * 10 + static_cast<int64_t>(c - '0');
         }
-        return Integer(res);
+        return Atom(res);
     }
 
-    Double Parser::parse_double() {
+    Atom Parser::parse_double() {
         auto t = peek();
         double res = 0.0, n = 0.1;
         size_t i = 0;
@@ -40,10 +40,10 @@ namespace Lisp {
             res += static_cast<double>(c - '0') * n;
             n /= 10;
         }
-        return Double(res);
+        return Atom(res);
     }
 
-    Boolean Parser::parse_boolean() {
+    Atom Parser::parse_boolean() {
         char c;
         auto t1 = peek(), t2 = peek(1);
         if (t1.type == TokenType::Pound && t2.type == TokenType::Identifier) {
@@ -51,20 +51,20 @@ namespace Lisp {
             consume();
             c = *t2.value.data();
             if (c == 't')
-                return true;
+                return Atom(true);
             if (c == 'f')
-                return false;
+                return Atom(false);
             throw "not a valid boolean value: " + t2.value;
 
         }
         throw "not a valid boolean value: " + t1.value;
     }
 
-    Symbol Parser::parse_symbol() {
+    Atom Parser::parse_symbol() {
         auto t = peek();
         if (t.type == TokenType::Identifier) {
             consume();
-            return Symbol(std::move(t.value));
+            return Atom(std::move(t.value));
         }
         throw "not a symbol: " + t.value;
     }

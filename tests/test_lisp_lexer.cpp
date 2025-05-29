@@ -29,7 +29,5 @@ TEST(LexerTests, LexSpecialInitial) {
 
     EXPECT_EQ(tokens.size(), 6);
     EXPECT_EQ(tokens[1].type, Lisp::TokenType::Identifier);
-    
-
 }
 

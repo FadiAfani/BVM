@@ -20,12 +20,11 @@ namespace Lisp {
             const Token& peek(size_t n);
             inline void consume() { cur_++; }
             Program parse();
-            Symbol parse_symbol();
-            Boolean parse_boolean();
-            Integer parse_integer();
-            Double parse_double();
+            Atom parse_symbol();
+            Atom parse_boolean();
+            Atom parse_integer();
+            Atom parse_double();
             Atom parse_atom();
-            Lambda parse_lambda();
             List parse_list();
             Expr parse_expr();
 

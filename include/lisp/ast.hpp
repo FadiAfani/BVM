@@ -35,7 +35,7 @@ namespace Lisp {
             Atom(double value);
             Atom(bool value);
             template<typename T>
-            T& get_value() const {
+            const T& get_value() const {
                 return std::get<T>(value_);
             }
     };

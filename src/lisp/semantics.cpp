@@ -5,7 +5,7 @@
 
 namespace Lisp {
 
-    Symbol* Scope::lookup(std::string& name) {
+    Symbol* Scope::lookup(const std::string& name) {
         Scope* cur = this;
         while (cur) {
             if (cur->symbol_table.contains(name))
@@ -42,7 +42,7 @@ namespace Lisp {
         if (node.get_type() == NodeType::SymbolLiteral) {
             if (env->symbol_table.size() >= 255)
                 throw std::runtime_error("Can't have more than 255 active locals");
-            std::string& name = node.get_value<std::string>();
+            const std::string& name = node.get_value<std::string>();
             env->symbol_table[name] = {static_cast<uint8_t>(env->symbol_table.size()), &node};
         }
     }
@@ -50,7 +50,7 @@ namespace Lisp {
     void SemanticAnalyzer::visit(const List& node) {
         auto first = node.get_elems().at(0);
         if (std::holds_alternative<Atom>(first)) {
-            std::string& name = std::get<Atom>(first).get_value<std::string>();
+            const std::string& name = std::get<Atom>(first).get_value<std::string>();
             switch(expr_types.at(name.data())) {
                 case ExprType::Define:
                     annotated_program_->sexpr_type[&node] = ExprType::Define;

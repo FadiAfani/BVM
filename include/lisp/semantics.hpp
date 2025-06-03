@@ -18,7 +18,7 @@ namespace Lisp {
         Scope* parent;
         std::unordered_map<std::string, Symbol> symbol_table;
 
-        Symbol* lookup(std::string& name);
+        Symbol* lookup(const std::string& name);
     };
 
     enum class ExprType {

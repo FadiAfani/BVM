@@ -5,14 +5,46 @@
 
 namespace Lisp {
 
-    SemanticAnalyzer::SemanticAnalyzer() {
+    Symbol* Scope::lookup(std::string& name) {
+        Scope* cur = this;
+        while (cur) {
+            if (cur->symbol_table.contains(name))
+                return &cur->symbol_table[name];
+            cur = cur->parent;
+        }
+        return nullptr;
+    }
 
+    SemanticAnalyzer::SemanticAnalyzer(Program program) {
+        annotated_program_ = std::make_unique<AnnotatedProgram>();
+        annotated_program_->program = std::move(program);
+    }
+
+    
+    std::unique_ptr<AnnotatedProgram> SemanticAnalyzer::analyze_program() {
+        auto gs = std::make_unique<Scope>();
+        scopes_.push(gs.get());
+        annotated_program_->globals = std::move(gs);
+
+        for (const Expr& sexpr : annotated_program_->program) {
+            if (std::holds_alternative<List>(sexpr))
+                visit(std::get<List>(sexpr));
+            else
+                visit(std::get<Atom>(sexpr));
+        }
+
+        return std::move(annotated_program_);
     }
 
     void SemanticAnalyzer::visit(const Atom& node) {
-        Scope* env = scopes.back().get();
-        if (node.get_type() != NodeType::SymbolLiteral)
-            env->locals.insert(&node);
+        Scope* env = scopes_.top();
+        auto s = node.get_value<std::string>();
+        if (node.get_type() == NodeType::SymbolLiteral) {
+            if (env->symbol_table.size() >= 255)
+                throw std::runtime_error("Can't have more than 255 active locals");
+            std::string& name = node.get_value<std::string>();
+            env->symbol_table[name] = {static_cast<uint8_t>(env->symbol_table.size()), &node};
+        }
     }
 
     void SemanticAnalyzer::visit(const List& node) {
@@ -21,13 +53,16 @@ namespace Lisp {
             std::string& name = std::get<Atom>(first).get_value<std::string>();
             switch(expr_types.at(name.data())) {
                 case ExprType::Define:
+                    annotated_program_->sexpr_type[&node] = ExprType::Define;
                     verify_define(node);
                     break;
                 case ExprType::Lambda:
                 {
-                    auto ns = std::make_unique<Scope>();
-                    ns->owner = &node;
-                    scopes.push_back(std::move(ns));
+                    annotated_program_->sexpr_type[&node] = ExprType::Lambda;
+                    annotated_program_->scopes[&node] = std::make_unique<Scope>();
+                    Scope* ns = annotated_program_->scopes[&node].get();
+                    ns->parent = scopes_.top();
+                    scopes_.push(ns);
                     verify_lambda(node);
                 }
                 break;
@@ -54,6 +89,9 @@ namespace Lisp {
         if (std::holds_alternative<Atom>(elems[1]) && std::get<Atom>(elems[1]).get_type() != NodeType::SymbolLiteral) {
             throw std::runtime_error("expected a symbol after 'define'");
         }
+
+        if (std::holds_alternative<List>(elems[3]) && !has_value(std::get<List>(elems[3])))
+            throw std::runtime_error("expression does not produce a value");
 
     }
 
@@ -108,6 +146,9 @@ namespace Lisp {
             case ExprType::Set:
             case ExprType::Define:
                     return false;
+
+            default:
+                    std::logic_error("SemanticAnalyzer::has_value - Not Implemented");
 
         }
 

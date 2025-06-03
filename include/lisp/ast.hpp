@@ -19,6 +19,8 @@ namespace Lisp {
     class ASTNode {
         protected:
             NodeType type_;
+            int row;
+            int col;
         public:
             NodeType get_type() const;
             virtual ~ASTNode() = default;
@@ -33,7 +35,7 @@ namespace Lisp {
             Atom(double value);
             Atom(bool value);
             template<typename T>
-            T& get_value() {
+            T& get_value() const {
                 return std::get<T>(value_);
             }
     };

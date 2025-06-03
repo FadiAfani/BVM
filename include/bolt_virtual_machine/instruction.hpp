@@ -10,6 +10,7 @@ namespace BVM {
         OpMov,
         OpSchedule,
         OpRet,
+        OpDefine,
     };
 }
 

@@ -22,16 +22,15 @@ namespace Lisp {
      * [instructions]
      * */
 
-    class Compiler {
+    struct FuncObj {
+        std::string name;
+        unsigned int n_locals;
+        std::vector<uint8_t> consts;
+        std::vector<uint32_t> instructions;
+        unsigned int next_reg;
+    };
 
-        struct FuncObj {
-            std::string name;
-            unsigned int n_locals;
-            unsigned int n_consts;
-            std::vector<uint8_t> consts;
-            std::vector<uint32_t> instructions;
-            unsigned int next_reg;
-        };
+    class Compiler {
 
         private:
             std::unique_ptr<AnnotatedProgram> program_;

@@ -1,16 +1,17 @@
+#include "bolt_virtual_machine/vm.hpp"
+#include <cstdint>
 #include <lisp/codegen.hpp>
 #include <bolt_virtual_machine/emitter.h>
 
 namespace Lisp {
 
     static void encode_const(FuncObj* obj, const void* data, size_t size) {
-        if (obj == nullptr)
-            throw std::runtime_error("function object is null, constant encoding failed");
+        assert(obj != nullptr);
 
         obj->consts.reserve(size);
         const uint8_t* ptr = static_cast<const uint8_t*>(data);
         for (size_t i = 0; i < size; i++) {
-            obj->consts.push_back((ptr[i] >> i * 8) & 0xFF);
+            //obj->consts.push_back((ptr[i] >> i * 8) & 0xFF);
         }
     }
 
@@ -18,9 +19,16 @@ namespace Lisp {
 
     }
 
+    const std::vector<std::unique_ptr<FuncObj>>& Compiler::get_objs() { return func_objs_; }
+
+
     void Compiler::compile() {
         auto ep = std::make_unique<FuncObj>();
+        auto globals = program_->globals.get();
+        ep->n_locals = globals->symbol_table.size();
+        ep->next_reg = ep->n_locals;
         active_objs_.push(ep.get());
+        active_scopes_.push(globals);
         func_objs_.push_back(std::move(ep));
         for (const Expr& expr : program_->program) {
             compile_expr(expr);
@@ -28,12 +36,18 @@ namespace Lisp {
     }
 
     void Compiler::compile_expr(const Expr& node) {
-        if (std::holds_alternative<Atom>(node))
-            compile_atom(std::get<Atom>(node));
-        else
+        if (std::holds_alternative<Atom>(node)) {
+            auto atom = std::get<Atom>(node);
+            if (atom.get_type() != NodeType::SymbolLiteral)
+                alloc_reg();
+            compile_atom(atom);
+        }
+        else {
+            alloc_reg();
             compile_list(std::get<List>(node));
+        }
     }
-
+    /* (define var expr) */
     void Compiler::compile_define(const List& node) {
         auto fo = active_objs_.top();
         auto scope = active_scopes_.top();
@@ -41,6 +55,7 @@ namespace Lisp {
         compile_expr(elems[2]);
         uint8_t dst = scope->lookup(std::get<Atom>(elems[1]).get_value<std::string>())->reg;
         fo->instructions.push_back(BVM::Emitter::mov(dst, fo->next_reg - 1));
+        free_reg(1);
     }
 
     void Compiler::compile_lambda(const List& node) {
@@ -63,34 +78,97 @@ namespace Lisp {
     }
 
     void Compiler::compile_list(const List& node) {
-        switch(program_->sexpr_type[&node]) {
-            case ExprType::Define:
-                compile_define(node);
-                break;
-            default:
-                throw std::runtime_error("compile_list: Not Implemented");
+        auto elems = node.get_elems();
+        auto first = elems.at(0);
+        if (std::holds_alternative<Atom>(first)) {
+            auto atom = std::get<Atom>(first);
+
+            switch(expr_types.at(atom.get_value<std::string>())) {
+                case ExprType::Define:
+                    compile_define(node);
+                    break;
+                case ExprType::If:
+                    compile_if(node);
+                    break;
+                case ExprType::Plus:
+                case ExprType::Minus:
+                case ExprType::Mul:
+                case ExprType::Div:
+                    compile_binary(node);
+                    break;
+                default:
+                    throw std::runtime_error("compile_list: Not Implemented");
+            }
+
         }
     }
 
     void Compiler::compile_atom(const Atom& node) {
         auto fo = active_objs_.top();
+        uint32_t inst = BVM::Emitter::load_const(fo->next_reg - 1, fo->consts.size());
+        BVM::BoltValue value;
         switch(node.get_type()) {
             case NodeType::BooleanLiteral:
-                fo->consts.push_back(static_cast<uint8_t>(node.get_value<bool>()));
+                value.as_bool = node.get_value<bool>();
+                value.type = BVM::BoltType::Boolean;
                 break;
             case NodeType::FloatLiteral:
-                encode_const(fo, &node.get_value<double>(), sizeof(double));
+                value.as_double = node.get_value<double>();
+                value.type = BVM::BoltType::Float;
                 break;
             case NodeType::IntegerLiteral:
-                encode_const(fo, &node.get_value<int>(), sizeof(int));
+                value.as_double = node.get_value<int64_t>();
+                value.type = BVM::BoltType::Integer;
                 break;
             default:
                 break;
-
-
-
         }
+        fo->instructions.push_back(inst);
+        size_t n_consts = fo->consts.size();
+        if (!fo->consts.contains(value))
+            fo->consts[value] = n_consts;
     }
 
+    /* (if cond if-expr else-expr) */
+    void Compiler::compile_if(const List& node) {
+        auto fo = active_objs_.top();
+        auto elems = node.get_elems();
+        // compile condition
+        compile_expr(elems[1]); 
+        size_t if_pos = fo->instructions.size();
+        // reserve space for the instruction
+        fo->instructions.reserve(1);
+        compile_expr(elems[2]);
+        size_t else_pos = fo->instructions.size();
+        compile_expr(elems[3]);
+        fo->instructions[if_pos] = BVM::Emitter::jmp_if_false(fo->next_reg - 2, else_pos - if_pos);
+
+
+    }
+
+    void Compiler::compile_binary(const List& node) {
+        auto fo = active_objs_.top();
+        auto elems = node.get_elems();
+        compile_expr(elems[1]);
+        compile_expr(elems[2]);
+        const std::string& proc_name = std::get<Atom>(elems[0]).get_value<std::string>();
+        switch(expr_types.at(proc_name)) {
+            case ExprType::Plus:
+                BVM::Emitter::add(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                break;
+            case ExprType::Minus:
+                BVM::Emitter::sub(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                break;
+            case ExprType::Div:
+                BVM::Emitter::div(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                break;
+            case ExprType::Mul:
+                BVM::Emitter::mul(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                break;
+            default:
+                throw std::logic_error("not a valid binary operation");
+        }
+
+    }
 
 }

@@ -1,6 +1,7 @@
 #ifndef BVM_VIRTUAL_MACHINE_H
 #define BVM_VIRTUAL_MACHINE_H
 
+#include <functional>
 #include <string>
 #define STACK_SIZE (1 << 12)
 #define METADATA_SIZE 3
@@ -39,6 +40,7 @@ namespace BVM {
         Symbol,
         Nil,
         Function,
+        Boolean,
 
     };
 
@@ -49,12 +51,14 @@ namespace BVM {
         std::string name;
         std::vector<uint32_t> code;
         std::vector<std::pair<int, int>> locals_pos;
+        std::vector<BoltValue> consts;
 
     };
 
     // not currently used
     struct BoltValue {
         union {
+            bool as_bool;
             int64_t as_int;
             double as_double;
             Cons* as_cons;
@@ -62,6 +66,19 @@ namespace BVM {
             Callable* as_func;
         };
         BoltType type;
+
+        bool operator==(const BoltValue& other) const {
+            if (this->type != other.type)
+                return false;
+            switch(this->type) {
+                case BoltType::Integer: return this->as_int == other.as_int;
+                case BoltType::Float: return this->as_double == other.as_double;
+                case BoltType::Boolean: return this->as_bool == other.as_bool;
+                case BoltType::Function: return this->as_func == other.as_func;
+                default: throw std::runtime_error("BoltValue: Comparison Not Implemented");
+            }
+
+        }
     };
 
 
@@ -97,19 +114,19 @@ namespace BVM {
                 return stack_[fp_].as_func->code[ip_++];
             }
 
-            inline Opcode decode_op(uint32_t inst) noexcept {
+            static inline Opcode decode_op(uint32_t inst) noexcept {
                 return static_cast<Opcode>(static_cast<uint8_t>(inst));
             }
 
-            inline uint8_t decode_rd(uint32_t inst) noexcept {
+            static inline uint8_t decode_rd(uint32_t inst) noexcept {
                 return (uint8_t) (inst >> 8);
             }
 
-            inline uint8_t decode_rt(uint32_t inst) noexcept {
+            static inline uint8_t decode_rt(uint32_t inst) noexcept {
                 return (uint8_t) (inst >> 16);
             }
 
-            inline uint8_t decode_rs(uint32_t inst) noexcept {
+            static inline uint8_t decode_rs(uint32_t inst) noexcept {
                 return (uint8_t) (inst >> 24);
             }
 
@@ -129,6 +146,23 @@ namespace BVM {
                 return stack_[sp_++];
             }
                     
+    };
+}
+
+
+namespace std {
+    template <>
+    struct hash<BVM::BoltValue> {
+        size_t operator()(const BVM::BoltValue& k) const {
+            switch (k.type) {
+                case BVM::BoltType::Integer: return hash<int64_t>()(k.as_int);
+                case BVM::BoltType::Float: return hash<double>()(k.as_double);
+                case BVM::BoltType::Boolean: return hash<bool>()(k.as_bool);
+                case BVM::BoltType::Symbol: return hash<std::string>()(std::string(k.as_symbol));
+                default: throw std::runtime_error("BoltValue hash not Implemented");
+            }
+            return 0;
+        }
     };
 }
 

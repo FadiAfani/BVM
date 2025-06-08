@@ -15,6 +15,8 @@ namespace Lisp {
         return nullptr;
     }
 
+    SemanticAnalyzer::SemanticAnalyzer() {}
+
     SemanticAnalyzer::SemanticAnalyzer(Program program) {
         annotated_program_ = std::make_unique<AnnotatedProgram>();
         annotated_program_->program = std::move(program);
@@ -38,12 +40,14 @@ namespace Lisp {
 
     void SemanticAnalyzer::visit(const Atom& node) {
         Scope* env = scopes_.top();
-        auto s = node.get_value<std::string>();
-        if (node.get_type() == NodeType::SymbolLiteral) {
+        if (node.get_type() == NodeType::SymbolLiteral 
+                && !reserved_keywords.contains(node.get_value<std::string>())) {
+
             if (env->symbol_table.size() >= 255)
                 throw std::runtime_error("Can't have more than 255 active locals");
-            const std::string& name = node.get_value<std::string>();
-            env->symbol_table[name] = {static_cast<uint8_t>(env->symbol_table.size()), &node};
+            auto name = node.get_value<std::string>();
+            uint8_t reg = env->symbol_table.size();
+            env->symbol_table[name] = {reg, &node};
         }
     }
 
@@ -51,21 +55,27 @@ namespace Lisp {
         auto first = node.get_elems().at(0);
         if (std::holds_alternative<Atom>(first)) {
             const std::string& name = std::get<Atom>(first).get_value<std::string>();
-            switch(expr_types.at(name.data())) {
+            //printf("name: %s, %ld\n", name.data(), name.length());
+            switch(expr_types.at(name)) {
                 case ExprType::Define:
-                    annotated_program_->sexpr_type[&node] = ExprType::Define;
                     verify_define(node);
                     break;
                 case ExprType::Lambda:
                 {
-                    annotated_program_->sexpr_type[&node] = ExprType::Lambda;
                     annotated_program_->scopes[&node] = std::make_unique<Scope>();
                     Scope* ns = annotated_program_->scopes[&node].get();
                     ns->parent = scopes_.top();
                     scopes_.push(ns);
                     verify_lambda(node);
+                    break;
                 }
-                break;
+
+                case ExprType::Plus:
+                case ExprType:: Minus:
+                case ExprType::Div:
+                case ExprType::Mul:
+                    verify_binary(node);
+                    break;
 
                 default:
                     std::logic_error("Not Implemented");
@@ -145,15 +155,22 @@ namespace Lisp {
                 return true;
             case ExprType::Set:
             case ExprType::Define:
-                    return false;
+                return false;
 
             default:
-                    std::logic_error("SemanticAnalyzer::has_value - Not Implemented");
+                std::logic_error("SemanticAnalyzer::has_value - Not Implemented");
 
         }
 
         return false;
 
     }
+
+    void SemanticAnalyzer::verify_binary(const List& node) {
+        auto elems = node.get_elems();
+        if (elems.size() != 3)
+            throw std::runtime_error("binary expression cannot have more than two operands");
+    }
+
 
 }

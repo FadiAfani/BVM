@@ -62,7 +62,7 @@ namespace Lisp {
 
     Atom Parser::parse_symbol() {
         auto t = peek();
-        if (t.type == TokenType::Identifier) {
+        if (t.type == TokenType::Identifier || t.type == TokenType::Keyword) {
             consume();
             return Atom(std::move(t.value));
         }

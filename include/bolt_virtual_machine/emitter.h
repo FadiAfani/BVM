@@ -17,8 +17,16 @@ namespace BVM {
             EMIT_BINOP_DEF(div);
             EMIT_BINOP_DEF(sub);
             EMIT_BINOP_DEF(add);
+            EMIT_BINOP_DEF(eq);
+            EMIT_BINOP_DEF(neq);
+            EMIT_BINOP_DEF(lte);
+            EMIT_BINOP_DEF(bte);
+            EMIT_BINOP_DEF(lt);
+            EMIT_BINOP_DEF(bt);
             static uint32_t mov(uint8_t rd, uint8_t rt);
             static uint32_t ret();
+            static uint32_t jmp_if_false(uint8_t rd, uint32_t rt);
+            static uint32_t load_const(uint8_t rd, uint16_t idx);
     };
 
 }

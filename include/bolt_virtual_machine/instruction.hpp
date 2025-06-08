@@ -11,6 +11,15 @@ namespace BVM {
         OpSchedule,
         OpRet,
         OpDefine,
+        OpJmp,
+        OpEq,
+        OpNe,
+        OpBt,
+        OpLt,
+        OpBte,
+        OpLte,
+        OpJmpIfFalse,
+        OpConst,
     };
 }
 

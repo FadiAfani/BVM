@@ -27,6 +27,11 @@ namespace Lisp {
         Cons,
         Qoute,
         Set,
+        If,
+        Plus,
+        Minus,
+        Mul,
+        Div,
     };
 
     struct AnnotatedProgram {
@@ -37,12 +42,16 @@ namespace Lisp {
     };
 
 
-    const std::unordered_map<const char*, ExprType> expr_types = {
+    const std::unordered_map<std::string, ExprType> expr_types = {
         {"lambda", ExprType::Lambda},
         {"define", ExprType::Define},
         {"cons", ExprType::Cons},
         {"qoute", ExprType::Qoute},
         {"set!", ExprType::Set},
+        {"+", ExprType::Plus},
+        {"-", ExprType::Minus},
+        {"*", ExprType::Mul},
+        {"/", ExprType::Div},
     };
 
 
@@ -53,6 +62,7 @@ namespace Lisp {
             std::unique_ptr<AnnotatedProgram> annotated_program_;
 
         public:
+            SemanticAnalyzer();
             SemanticAnalyzer(Program program);
             std::unique_ptr<AnnotatedProgram> analyze_program();
             void visit(const List& node);
@@ -64,6 +74,7 @@ namespace Lisp {
             void verify_and(const List& node);
             void verify_qoute(const List& node);
             void verify_set(const List& node);
+            void verify_binary(const List& node);
             bool has_value(const List& node);
     };
 

@@ -8,7 +8,7 @@ class SemanticsTester : public ::testing::Test {
 protected:
     std::string param;
     Lisp::SemanticAnalyzer analyzer;
-    Lisp::List node;
+    Lisp::Program node;
 
     void SetUp() override {
         param = param_map_[::testing::UnitTest::GetInstance()
@@ -19,7 +19,8 @@ protected:
         lexer.tokenize(); 
         auto toks = lexer.get_tokens(); 
         Lisp::Parser parser(std::move(toks)); 
-        node = parser.parse_list(); 
+        node = parser.parse();
+        analyzer = Lisp::SemanticAnalyzer(node);
     }
 
     static std::unordered_map<std::string, std::string> param_map_;
@@ -35,18 +36,18 @@ std::unordered_map<std::string, std::string> SemanticsTester::param_map_ = {
 
 // Tests share the same setup but each gets its own parameter
 TEST_F(SemanticsTester, TestIf) {
-    EXPECT_NO_THROW(analyzer.verify_if(node));
+    EXPECT_NO_THROW(analyzer.analyze_program());
 }
 
 TEST_F(SemanticsTester, TestMalformedIf) {
-    EXPECT_ANY_THROW(analyzer.verify_if(node));
+    EXPECT_ANY_THROW(analyzer.analyze_program());
 }
 
 TEST_F(SemanticsTester, TestDefine) {
-    EXPECT_NO_THROW(analyzer.verify_define(node));
+    EXPECT_NO_THROW(analyzer.analyze_program());
 }
 
 TEST_F(SemanticsTester, NestedDefine) {
-    EXPECT_ANY_THROW(analyzer.verify_define(node));
+    EXPECT_ANY_THROW(analyzer.analyze_program());
 }
 

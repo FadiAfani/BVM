@@ -69,7 +69,7 @@ namespace Lisp {
                             t.value += c;
                             c = text_[++i];
                         }
-                        if (reserved_keywords.contains(t.value.data()))
+                        if (reserved_keywords.contains(t.value))
                             t.type = TokenType::Keyword;
                         else
                             t.type = TokenType::Identifier;

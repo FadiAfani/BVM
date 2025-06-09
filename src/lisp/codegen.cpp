@@ -35,27 +35,34 @@ namespace Lisp {
         }
     }
 
-    void Compiler::compile_expr(const Expr& node) {
+    unsigned int Compiler::compile_expr(const Expr& node) {
+        auto fo = active_objs_.top();
+        auto scope = active_scopes_.top();
+        unsigned int reg;
         if (std::holds_alternative<Atom>(node)) {
             auto atom = std::get<Atom>(node);
             if (atom.get_type() != NodeType::SymbolLiteral)
-                alloc_reg();
+                reg = fo->next_reg++;
+            else
+                reg = scope->lookup(atom.get_value<std::string>())->reg;
             compile_atom(atom);
         }
         else {
-            alloc_reg();
+            reg = fo->next_reg++;
             compile_list(std::get<List>(node));
         }
+        return reg;
     }
     /* (define var expr) */
     void Compiler::compile_define(const List& node) {
         auto fo = active_objs_.top();
+        unsigned int r1, prev_reg_state = fo->next_reg;
         auto scope = active_scopes_.top();
         auto elems = node.get_elems();
-        compile_expr(elems[2]);
+        r1 = compile_expr(elems[2]);
         uint8_t dst = scope->lookup(std::get<Atom>(elems[1]).get_value<std::string>())->reg;
-        fo->instructions.push_back(BVM::Emitter::mov(dst, fo->next_reg - 1));
-        free_reg(1);
+        fo->instructions.push_back(BVM::Emitter::mov(dst, r1));
+        fo->next_reg = prev_reg_state;
     }
 
     void Compiler::compile_lambda(const List& node) {
@@ -74,10 +81,12 @@ namespace Lisp {
         for (size_t i = 2; i < elems.size(); i++) {
             compile_expr(elems[i]);
         }
+        ptr->next_reg = arity + n_locals;
         active_objs_.pop();
     }
 
     void Compiler::compile_list(const List& node) {
+        auto fo = active_objs_.top();
         auto elems = node.get_elems();
         auto first = elems.at(0);
         if (std::holds_alternative<Atom>(first)) {
@@ -101,6 +110,7 @@ namespace Lisp {
             }
 
         }
+        fo->next_reg--;
     }
 
     void Compiler::compile_atom(const Atom& node) {
@@ -120,8 +130,10 @@ namespace Lisp {
                 value.as_double = node.get_value<int64_t>();
                 value.type = BVM::BoltType::Integer;
                 break;
+            case NodeType::SymbolLiteral:
+                return;
             default:
-                break;
+                throw std::logic_error("unsupported atomic value");
         }
         fo->instructions.push_back(inst);
         size_t n_consts = fo->consts.size();
@@ -132,6 +144,7 @@ namespace Lisp {
     /* (if cond if-expr else-expr) */
     void Compiler::compile_if(const List& node) {
         auto fo = active_objs_.top();
+        unsigned int prev_reg_state = fo->next_reg;
         auto elems = node.get_elems();
         // compile condition
         compile_expr(elems[1]); 
@@ -142,32 +155,37 @@ namespace Lisp {
         size_t else_pos = fo->instructions.size();
         compile_expr(elems[3]);
         fo->instructions[if_pos] = BVM::Emitter::jmp_if_false(fo->next_reg - 2, else_pos - if_pos);
+        fo->next_reg = prev_reg_state;
 
 
     }
 
     void Compiler::compile_binary(const List& node) {
         auto fo = active_objs_.top();
+        unsigned int r1, r2, prev_reg_state = fo->next_reg;
         auto elems = node.get_elems();
-        compile_expr(elems[1]);
-        compile_expr(elems[2]);
+        r1 = compile_expr(elems[1]);
+        r2 = compile_expr(elems[2]);
         const std::string& proc_name = std::get<Atom>(elems[0]).get_value<std::string>();
+        uint32_t inst;
         switch(expr_types.at(proc_name)) {
             case ExprType::Plus:
-                BVM::Emitter::add(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                inst = BVM::Emitter::add(prev_reg_state - 1, r1, r2);
                 break;
             case ExprType::Minus:
-                BVM::Emitter::sub(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                inst = BVM::Emitter::sub(prev_reg_state - 1, r1, r2);
                 break;
             case ExprType::Div:
-                BVM::Emitter::div(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                inst = BVM::Emitter::div(prev_reg_state - 1, r1, r2);
                 break;
             case ExprType::Mul:
-                BVM::Emitter::mul(fo->next_reg - 1, fo->next_reg - 2, fo->next_reg - 3);
+                inst = BVM::Emitter::mul(prev_reg_state - 1, r1, r2);
                 break;
             default:
                 throw std::logic_error("not a valid binary operation");
         }
+        fo->instructions.push_back(inst);
+        fo->next_reg = prev_reg_state;
 
     }
 

@@ -32,9 +32,6 @@ namespace Lisp {
         std::unordered_map<BVM::BoltValue, size_t> consts;
         std::vector<uint32_t> instructions;
         unsigned int next_reg;
-
-        
-
     };
 
     class Compiler {
@@ -49,7 +46,7 @@ namespace Lisp {
         public:
             Compiler(std::unique_ptr<AnnotatedProgram> program);
             void compile();
-            void compile_expr(const Expr& node);
+            unsigned int compile_expr(const Expr& node);
             void compile_atom(const Atom& node);
             void compile_list(const List& node);
             void compile_qoute(const List& node);
@@ -62,9 +59,9 @@ namespace Lisp {
                 auto fo = active_objs_.top();
                 if (n_regs > MAX_REGS - fo->next_reg)
                     throw std::logic_error("not enough registers to free");
-                fo->next_reg--;
+                fo->next_reg -= n_regs;
             }
-            inline void alloc_reg() {
+            inline void alloc_reg(const Expr& node) {
                 auto fo = active_objs_.top();
                 fo->next_reg++;
             }

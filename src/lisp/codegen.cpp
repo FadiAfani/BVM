@@ -121,7 +121,7 @@ namespace Lisp {
 
     void Compiler::compile_atom(const Atom& node) {
         auto fo = active_objs_.top();
-        uint32_t inst = BVM::Emitter::load_const(fo->next_reg - 1, fo->consts.size());
+        uint32_t inst;
         BVM::BoltValue value;
         switch(node.get_type()) {
             case NodeType::BooleanLiteral:
@@ -141,26 +141,27 @@ namespace Lisp {
             default:
                 throw std::logic_error("unsupported atomic value");
         }
-        fo->instructions.push_back(inst);
         size_t n_consts = fo->consts.size();
         if (!fo->consts.contains(value))
             fo->consts[value] = n_consts;
+        inst = BVM::Emitter::load_const(fo->next_reg - 1, fo->consts[value]);
+        fo->instructions.push_back(inst);
     }
 
     /* (if cond if-expr else-expr) */
     void Compiler::compile_if(const List& node) {
         auto fo = active_objs_.top();
-        unsigned int prev_reg_state = fo->next_reg;
+        unsigned int r1, prev_reg_state = fo->next_reg;
         auto elems = node.get_elems();
         // compile condition
-        compile_expr(elems[1]); 
-        size_t if_pos = fo->instructions.size();
+        r1 = compile_expr(elems[1]); 
         // reserve space for the instruction
-        fo->instructions.reserve(1);
+        fo->instructions.push_back(0);
+        size_t if_pos = fo->instructions.size();
         compile_expr(elems[2]);
         size_t else_pos = fo->instructions.size();
         compile_expr(elems[3]);
-        fo->instructions[if_pos] = BVM::Emitter::jmp_if_false(fo->next_reg - 2, else_pos - if_pos);
+        fo->instructions[if_pos - 1] = BVM::Emitter::jmp_if_false(r1, else_pos - if_pos);
         fo->next_reg = prev_reg_state;
 
 

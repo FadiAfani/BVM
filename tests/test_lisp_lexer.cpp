@@ -28,6 +28,6 @@ TEST(LexerTests, LexSpecialInitial) {
     auto tokens = lexer.get_tokens();
 
     EXPECT_EQ(tokens.size(), 6);
-    EXPECT_EQ(tokens[1].type, Lisp::TokenType::Identifier);
+    EXPECT_EQ(tokens[1].type, Lisp::TokenType::Keyword);
 }
 

@@ -9,7 +9,7 @@ namespace Lisp {
 
     const std::unordered_set<std::string> reserved_keywords = {
         "if", "lambda", "define", "let", "begin", "cond", "and", "or",
-        "set!", "quote", "+", "-", "/", "*"
+        "set!", "quote", "+", "-", "/", "*", ">", ">=", "<", "<=", "=", "/="
     };
 
     const std::unordered_set<char> reserved_symbols = {

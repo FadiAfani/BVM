@@ -12,6 +12,12 @@ namespace BVM {
     EMIT_BINOP_IMPL(add, Opcode::OpAdd);
     EMIT_BINOP_IMPL(div, Opcode::OpDiv);
     EMIT_BINOP_IMPL(sub, Opcode::OpSub);
+    EMIT_BINOP_IMPL(bte, Opcode::OpBte);
+    EMIT_BINOP_IMPL(bt, Opcode::OpBt);
+    EMIT_BINOP_IMPL(lte, Opcode::OpLte);
+    EMIT_BINOP_IMPL(lt, Opcode::OpLt);
+    EMIT_BINOP_IMPL(eq, Opcode::OpEq);
+    EMIT_BINOP_IMPL(ne, Opcode::OpNe);
     uint32_t Emitter::mov(uint8_t rd, uint8_t rt) {
         return static_cast<uint8_t>(Opcode::OpMov) | rd << 8 | rt << 16;
     }

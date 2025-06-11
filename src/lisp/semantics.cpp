@@ -70,10 +70,19 @@ namespace Lisp {
                     break;
                 }
 
+                case ExprType::If:
+                    verify_if(node);
+                    break;
                 case ExprType::Plus:
-                case ExprType:: Minus:
+                case ExprType::Minus:
                 case ExprType::Div:
                 case ExprType::Mul:
+                case ExprType::Bt:
+                case ExprType::Lt:
+                case ExprType::Bte:
+                case ExprType::Lte:
+                case ExprType::Eq:
+                case ExprType::Ne:
                     verify_binary(node);
                     break;
 

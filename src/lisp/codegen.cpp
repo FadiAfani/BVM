@@ -103,6 +103,12 @@ namespace Lisp {
                 case ExprType::Minus:
                 case ExprType::Mul:
                 case ExprType::Div:
+                case ExprType::Bt:
+                case ExprType::Lt:
+                case ExprType::Bte:
+                case ExprType::Lte:
+                case ExprType::Ne:
+                case ExprType::Eq:
                     compile_binary(node);
                     break;
                 default:
@@ -180,6 +186,24 @@ namespace Lisp {
                 break;
             case ExprType::Mul:
                 inst = BVM::Emitter::mul(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Bte:
+                inst = BVM::Emitter::bte(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Bt:
+                inst = BVM::Emitter::bt(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Lte:
+                inst = BVM::Emitter::lte(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Lt:
+                inst = BVM::Emitter::lt(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Eq:
+                inst = BVM::Emitter::eq(prev_reg_state - 1, r1, r2);
+                break;
+            case ExprType::Ne:
+                inst = BVM::Emitter::ne(prev_reg_state - 1, r1, r2);
                 break;
             default:
                 throw std::logic_error("not a valid binary operation");

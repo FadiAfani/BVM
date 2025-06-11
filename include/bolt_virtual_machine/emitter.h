@@ -18,7 +18,7 @@ namespace BVM {
             EMIT_BINOP_DEF(sub);
             EMIT_BINOP_DEF(add);
             EMIT_BINOP_DEF(eq);
-            EMIT_BINOP_DEF(neq);
+            EMIT_BINOP_DEF(ne);
             EMIT_BINOP_DEF(lte);
             EMIT_BINOP_DEF(bte);
             EMIT_BINOP_DEF(lt);

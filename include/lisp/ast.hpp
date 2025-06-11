@@ -24,6 +24,7 @@ namespace Lisp {
         public:
             NodeType get_type() const;
             virtual ~ASTNode() = default;
+            virtual std::string print() const = 0;
     };
 
     class Atom : public ASTNode {
@@ -38,6 +39,7 @@ namespace Lisp {
             const T& get_value() const {
                 return std::get<T>(value_);
             }
+            std::string print() const override;
     };
 
 
@@ -56,6 +58,7 @@ namespace Lisp {
             List(std::vector<Expr> elems);
             void add_elem(Expr expr);
             const std::vector<Expr>& get_elems() const;
+            std::string print() const override;
     };
 
 }

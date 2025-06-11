@@ -32,6 +32,12 @@ namespace Lisp {
         Minus,
         Mul,
         Div,
+        Bt,
+        Lt,
+        Bte,
+        Lte,
+        Eq,
+        Ne,
     };
 
     struct AnnotatedProgram {
@@ -48,10 +54,16 @@ namespace Lisp {
         {"cons", ExprType::Cons},
         {"qoute", ExprType::Qoute},
         {"set!", ExprType::Set},
+        {"if", ExprType::If},
         {"+", ExprType::Plus},
         {"-", ExprType::Minus},
         {"*", ExprType::Mul},
-        {"/", ExprType::Div},
+        {">", ExprType::Bt},
+        {">=", ExprType::Bte},
+        {"<", ExprType::Lt},
+        {"<=", ExprType::Lte},
+        {"/=", ExprType::Ne},
+        {"=", ExprType::Eq},
     };
 
 

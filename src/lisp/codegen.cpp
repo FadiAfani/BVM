@@ -151,16 +151,18 @@ namespace Lisp {
     /* (if cond if-expr else-expr) */
     void Compiler::compile_if(const List& node) {
         auto fo = active_objs_.top();
-        unsigned int r1, prev_reg_state = fo->next_reg;
+        unsigned int r1, r2, r3, prev_reg_state = fo->next_reg;
         auto elems = node.get_elems();
         // compile condition
         r1 = compile_expr(elems[1]); 
         // reserve space for the instruction
         fo->instructions.push_back(0);
         size_t if_pos = fo->instructions.size();
-        compile_expr(elems[2]);
+        r2 = compile_expr(elems[2]);
+        fo->instructions.push_back(BVM::Emitter::mov(prev_reg_state - 1, r2));
         size_t else_pos = fo->instructions.size();
-        compile_expr(elems[3]);
+        r3 = compile_expr(elems[3]);
+        fo->instructions.push_back(BVM::Emitter::mov(prev_reg_state - 1, r3));
         fo->instructions[if_pos - 1] = BVM::Emitter::jmp_if_false(r1, else_pos - if_pos);
         fo->next_reg = prev_reg_state;
 

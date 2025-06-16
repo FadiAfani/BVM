@@ -38,6 +38,7 @@ namespace Lisp {
         return std::move(annotated_program_);
     }
 
+
     void SemanticAnalyzer::visit(const Atom& node) {
         Scope* env = scopes_.top();
         if (node.get_type() == NodeType::SymbolLiteral 
@@ -52,20 +53,16 @@ namespace Lisp {
     }
 
     void SemanticAnalyzer::visit(const List& node) {
+        //printf("%s\n", node.print().data());
         auto first = node.get_elems().at(0);
         if (std::holds_alternative<Atom>(first)) {
             const std::string& name = std::get<Atom>(first).get_value<std::string>();
-            //printf("name: %s, %ld\n", name.data(), name.length());
             switch(expr_types.at(name)) {
                 case ExprType::Define:
                     verify_define(node);
                     break;
                 case ExprType::Lambda:
                 {
-                    annotated_program_->scopes[&node] = std::make_unique<Scope>();
-                    Scope* ns = annotated_program_->scopes[&node].get();
-                    ns->parent = scopes_.top();
-                    scopes_.push(ns);
                     verify_lambda(node);
                     break;
                 }
@@ -91,31 +88,34 @@ namespace Lisp {
             }
         }
 
-        for (const Expr& expr : node.get_elems()) {
-            if (std::holds_alternative<List>(expr))
-                visit(std::get<List>(expr));
-            else
-                visit(std::get<Atom>(expr));
-        }
     }
 
     void SemanticAnalyzer::verify_define(const List& node) {
         auto elems = node.get_elems();
         auto symbol = std::get<Atom>(elems.at(1));
         
-        if (elems.size() < 3)
+        if (elems.size() != 3)
             throw std::runtime_error("ill-formed define");
         if (std::holds_alternative<Atom>(elems[1]) && std::get<Atom>(elems[1]).get_type() != NodeType::SymbolLiteral) {
             throw std::runtime_error("expected a symbol after 'define'");
         }
 
-        if (std::holds_alternative<List>(elems[3]) && !has_value(std::get<List>(elems[3])))
+        if (std::holds_alternative<List>(elems[2]) && !has_value(std::get<List>(elems[2])))
             throw std::runtime_error("expression does not produce a value");
+
+        for (auto& expr : elems) {
+            std::visit([&](auto&& e) { visit(e); }, expr);
+        }
 
     }
 
     void SemanticAnalyzer::verify_lambda(const List& node) {
+        printf("%p\n", &node);
         auto elems = node.get_elems();
+        annotated_program_->scopes[&node] = std::make_unique<Scope>();
+        Scope* ns = annotated_program_->scopes[&node].get();
+        ns->parent = scopes_.top();
+        scopes_.push(ns);
 
         if (elems.size() < 3) {
             throw std::runtime_error("malformed lambda expression");
@@ -124,6 +124,15 @@ namespace Lisp {
         if (!std::holds_alternative<List>(elems.at(1))) {
             throw std::runtime_error("expected a list of arguments after 'lambda'");
         }
+
+        auto& params = std::get<List>(elems[1]);
+
+        for (auto& p : params.get_elems()) {
+            if (!std::holds_alternative<Atom>(p))
+                throw std::runtime_error("parameters should be atomic");
+            visit(std::get<Atom>(p));
+        }
+        visit(std::get<List>(elems[2]));
     }
 
     void SemanticAnalyzer::verify_if(const List& node) {
@@ -131,6 +140,10 @@ namespace Lisp {
 
         if (elems.size() < 4 || !std::holds_alternative<Atom>(elems[0]) || std::get<Atom>(elems[0]).get_value<std::string>() != "if")
             throw std::runtime_error("malformed if expression");
+
+        for (auto& expr : elems) {
+            std::visit([&](auto&& e) { visit(e); }, expr);
+        }
     }
 
     void SemanticAnalyzer::verify_qoute(const List& node) {
@@ -138,6 +151,10 @@ namespace Lisp {
 
         if (elems.size() != 2)
             throw std::runtime_error("qoute is only applicable to a single expression");
+
+        for (auto& expr : elems) {
+            std::visit([&](auto&& e) { visit(e); }, expr);
+        }
     }
 
     void SemanticAnalyzer::verify_set(const List& node) {
@@ -145,6 +162,10 @@ namespace Lisp {
 
         if (elems.size() != 3) {
             throw std::runtime_error("malformed set! expression");
+        }
+
+        for (auto& expr : elems) {
+            std::visit([&](auto&& e) { visit(e); }, expr);
         }
     }
 
@@ -179,6 +200,10 @@ namespace Lisp {
         auto elems = node.get_elems();
         if (elems.size() != 3)
             throw std::runtime_error("binary expression cannot have more than two operands");
+
+        for (auto& expr : elems) {
+            std::visit([&](auto&& e) { visit(e); }, expr);
+        }
     }
 
 

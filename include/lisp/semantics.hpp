@@ -40,13 +40,6 @@ namespace Lisp {
         Ne,
     };
 
-    struct AnnotatedProgram {
-        Program program;
-        std::unique_ptr<Scope> globals;
-        std::unordered_map<const List*, std::unique_ptr<Scope>> scopes;
-        std::unordered_map<const List*, ExprType> sexpr_type;
-    };
-
 
     const std::unordered_map<std::string, ExprType> expr_types = {
         {"lambda", ExprType::Lambda},
@@ -71,12 +64,12 @@ namespace Lisp {
 
         private:
             std::stack<Scope*> scopes_;
-            std::unique_ptr<AnnotatedProgram> annotated_program_;
+            Program& program;
 
         public:
             SemanticAnalyzer();
-            SemanticAnalyzer(Program program);
-            std::unique_ptr<AnnotatedProgram> analyze_program();
+            SemanticAnalyzer(Program& program);
+            void analyze_program();
             void visit(const List& node);
             void visit(const Atom& node);
             void verify_define(const List& node);

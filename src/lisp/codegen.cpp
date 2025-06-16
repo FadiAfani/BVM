@@ -69,6 +69,7 @@ namespace Lisp {
         auto nfo = std::make_unique<FuncObj>();
         auto elems = node.get_elems();
         int arity = std::get<List>(elems[1]).get_elems().size();
+        auto sc = program_->scopes.at(&node).get();
         int n_locals = program_->scopes[&node]->symbol_table.size();
         FuncObj* ptr = nfo.get();
         ptr->n_locals = n_locals;
@@ -98,6 +99,9 @@ namespace Lisp {
                     break;
                 case ExprType::If:
                     compile_if(node);
+                    break;
+                case ExprType::Lambda:
+                    compile_lambda(node);
                     break;
                 case ExprType::Plus:
                 case ExprType::Minus:

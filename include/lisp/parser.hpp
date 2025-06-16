@@ -5,7 +5,7 @@
 #include "lisp/lexer.hpp"
 namespace Lisp {
 
-    using Program = std::vector<Expr>;
+    using Program = std::vector<SExpr>;
 
     class Parser {
 
@@ -26,7 +26,7 @@ namespace Lisp {
             Atom parse_double();
             Atom parse_atom();
             List parse_list();
-            Expr parse_expr();
+            SExpr parse_expr();
 
 
 

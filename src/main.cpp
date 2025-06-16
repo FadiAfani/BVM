@@ -3,7 +3,7 @@
 #include "lisp/disassembler.hpp"
 #include <iostream>
 int main(int argc, char** argv) {
-    Lisp::Lexer lexer("(define x 3) \n (define y (if (< x 10) (* x 2) (- x 2)))");
+    Lisp::Lexer lexer("(define x (lambda (y) (* y 10)))");
     lexer.tokenize();
     auto toks = lexer.get_tokens();
     Lisp::Parser parser(toks);

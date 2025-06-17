@@ -5,7 +5,7 @@
 #include "lisp/lexer.hpp"
 namespace Lisp {
 
-    using Program = std::vector<SExpr>;
+    using Program = std::vector<std::unique_ptr<SExpr>>;
 
     class Parser {
 
@@ -20,13 +20,13 @@ namespace Lisp {
             const Token& peek(size_t n);
             inline void consume() { cur_++; }
             Program parse();
-            Atom parse_symbol();
-            Atom parse_boolean();
-            Atom parse_integer();
-            Atom parse_double();
-            Atom parse_atom();
-            List parse_list();
-            SExpr parse_expr();
+            std::unique_ptr<SExpr> parse_symbol();
+            std::unique_ptr<SExpr> parse_boolean();
+            std::unique_ptr<SExpr> parse_integer();
+            std::unique_ptr<SExpr> parse_double();
+            std::unique_ptr<SExpr> parse_atom();
+            std::unique_ptr<SExpr> parse_list();
+            std::unique_ptr<SExpr> parse_expr();
 
 
 

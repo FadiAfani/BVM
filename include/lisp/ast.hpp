@@ -1,11 +1,10 @@
 #ifndef LIST_AST_H
 #define LIST_AST_H
 
-#include "lisp/lexer.hpp"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
-#include <variant>
+#include <vector>
 namespace Lisp {
 
     enum class SExprType {
@@ -24,22 +23,48 @@ namespace Lisp {
             size_t col_;
         public:
             virtual ~SExpr() = default;
-            virtual std::string print() const = 0;
+            virtual const std::string print() = 0;
+            SExprType get_type() { return type_; }
     };
 
+    template<typename T>
     class Atom : public SExpr {
-        private:
-            std::variant<std::string, int, double, bool> value_;
+        protected:
+            T value_;
         public:
-            Atom(std::string value, bool symbol = true);
-            Atom(int value);
-            Atom(double value);
-            Atom(bool value);
-            template<typename T>
-            const T& get_value() const {
-                return std::get<T>(value_);
+            const T& get_value() {
+                return value_;
             }
-            std::string print() const override;
+    };
+
+    class IntAtom : public Atom<int> {
+        public:
+            IntAtom(int value);
+            const std::string print() override;
+    };
+
+    class FloatAtom : public Atom<double> {
+        public:
+            FloatAtom(double value);
+            const std::string print() override;
+    };
+
+    class StringAtom : public Atom<std::string> {
+        public:
+            StringAtom(std::string value);
+            const std::string print() override;
+    };
+
+    class SymbolAtom : public Atom<std::string> {
+        public:
+            SymbolAtom(std::string value);
+            const std::string print() override;
+    };
+
+    class BoolAtom : public Atom<bool> {
+        public:
+            BoolAtom(bool value);
+            const std::string print() override;
     };
 
     class List : public SExpr {
@@ -51,7 +76,7 @@ namespace Lisp {
             List(std::vector<std::unique_ptr<SExpr>> elems);
             void add_elem(std::unique_ptr<SExpr> expr);
             const std::vector<SExpr>& get_elems() const;
-            std::string print() const override;
+            const std::string print() override;
     };
 
 

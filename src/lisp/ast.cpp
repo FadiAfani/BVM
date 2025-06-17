@@ -1,44 +1,53 @@
 #include "lisp/ast.hpp"
 #include <string>
-#include <variant>
 
 namespace Lisp {
 
-    Atom::Atom(std::string value, bool symbol)  {
+    StringAtom::StringAtom(std::string value)  {
         value_ = std::move(value);
-        type_ = symbol ? SExprType::SymbolLiteral : SExprType::StringLiteral;
+        type_ = SExprType::StringLiteral;
     }
 
-    Atom::Atom(int value) {
+    const std::string StringAtom::print() {
+        return value_;
+    }
+
+    SymbolAtom::SymbolAtom(std::string value)  {
+        value_ = std::move(value);
+        type_ = SExprType::SymbolLiteral;
+    }
+
+    const std::string SymbolAtom::print() {
+        return value_;
+    }
+
+    IntAtom::IntAtom(int value) {
         type_ = SExprType::IntLiteral;
         value_ = value;
     } 
 
-    Atom::Atom(double value) {
+    const std::string IntAtom::print() {
+        return std::to_string(value_);
+    }
+
+    FloatAtom::FloatAtom(double value) {
         type_ = SExprType::FloatLiteral;
         value_ = value;
     }
+
+    const std::string FloatAtom::print() {
+        return std::to_string(value_);
+    }
     
-    Atom::Atom(bool value) {
+    BoolAtom::BoolAtom(bool value) {
         type_ = SExprType::BoolLiteral;
         value_ = value;
     }
 
-    std::string Atom::print() const {
-        switch(type_) {
-            case SExprType::IntLiteral:
-                return std::to_string(std::get<int>(value_));
-            case SExprType::SymbolLiteral:
-            case SExprType::StringLiteral:
-                return std::get<std::string>(value_);
-            case Lisp::SExprType::BoolLiteral:
-                return std::get<bool>(value_) ? "#t" : "#f";
-            case Lisp::SExprType::FloatLiteral:
-                return std::to_string(std::get<double>(value_));
-            default:
-                throw std::logic_error("Print Atom: Not Implemented");
-        }
+    const std::string BoolAtom::print() {
+        return value_ ? "#t" : "#f";
     }
+
 
     List::List() {}
     

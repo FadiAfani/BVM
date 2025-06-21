@@ -15,132 +15,111 @@ namespace Lisp {
         }
     }
 
-    Compiler::Compiler(std::unique_ptr<AnnotatedProgram> program) : program_(std::move(program)) {
-
-    }
-
     const std::vector<std::unique_ptr<FuncObj>>& Compiler::get_objs() { return func_objs_; }
 
 
-    void Compiler::compile() {
+    void Compiler::compile(const Lambda* program) {
         auto ep = std::make_unique<FuncObj>();
-        auto globals = program_->globals.get();
-        ep->n_locals = globals->symbol_table.size();
-        ep->next_reg = ep->n_locals;
         active_objs_.push(ep.get());
-        active_scopes_.push(globals);
+        active_scopes_.push(&program->get_scope());
         func_objs_.push_back(std::move(ep));
-        for (const Expr& expr : program_->program) {
-            compile_expr(expr);
+        for (auto& e : program->get_exprs()) {
+            compile_expr(e.get());
         }
     }
 
-    unsigned int Compiler::compile_expr(const Expr& node) {
+    unsigned int Compiler::compile_expr(const ASTNode* node) {
         auto fo = active_objs_.top();
         auto scope = active_scopes_.top();
         unsigned int reg;
-        if (std::holds_alternative<Atom>(node)) {
-            auto atom = std::get<Atom>(node);
-            if (atom.get_type() != NodeType::SymbolLiteral)
+        if (node->get_type() != NodeType::Atomic) {
+            const AtomicNode* atom = static_cast<const AtomicNode*>(node);
+            if (atom->get_value()->get_type() != SExprType::SymbolLiteral)
                 reg = fo->next_reg++;
-            else
-                reg = scope->lookup(atom.get_value<std::string>())->reg;
+            else {
+                const std::string& name = static_cast<const StringAtom*>(atom->get_value())->get_value();
+                reg = scope->lookup(name)->reg;
+            }
             compile_atom(atom);
         }
         else {
             reg = fo->next_reg++;
-            compile_list(std::get<List>(node));
+            compile_list(node);
         }
         return reg;
     }
     /* (define var expr) */
-    void Compiler::compile_define(const List& node) {
+    void Compiler::compile_define(const Define* node) {
         auto fo = active_objs_.top();
         unsigned int r1, prev_reg_state = fo->next_reg;
         auto scope = active_scopes_.top();
-        auto elems = node.get_elems();
-        r1 = compile_expr(elems[2]);
-        uint8_t dst = scope->lookup(std::get<Atom>(elems[1]).get_value<std::string>())->reg;
+        r1 = compile_expr(node->get_expr());
+        uint8_t dst = scope->lookup(node->get_id())->reg;
         fo->instructions.push_back(BVM::Emitter::mov(dst, r1));
         fo->next_reg = prev_reg_state;
     }
 
-    void Compiler::compile_lambda(const List& node) {
+    void Compiler::compile_lambda(const Lambda* node) {
         auto nfo = std::make_unique<FuncObj>();
-        auto elems = node.get_elems();
-        int arity = std::get<List>(elems[1]).get_elems().size();
-        auto sc = program_->scopes.at(&node).get();
-        int n_locals = program_->scopes[&node]->symbol_table.size();
+        auto& params = node->get_parameters();
+        int arity = params.size();
+        int n_locals = node->get_scope().symbol_table.size();
         FuncObj* ptr = nfo.get();
         ptr->n_locals = n_locals;
         ptr->next_reg = arity + n_locals;
-        ptr->name = std::get<Atom>(elems[0]).get_value<std::string>();
+        ptr->name = node->get_id();
 
         active_objs_.push(ptr);
         func_objs_.push_back(std::move(nfo));
         
-        for (size_t i = 2; i < elems.size(); i++) {
-            compile_expr(elems[i]);
+        for (auto& e : node->get_exprs()) {
+            compile_expr(e.get());
         }
+        
         ptr->next_reg = arity + n_locals;
         active_objs_.pop();
     }
 
-    void Compiler::compile_list(const List& node) {
+    void Compiler::compile_list(const ASTNode* node) {
         auto fo = active_objs_.top();
-        auto elems = node.get_elems();
-        auto first = elems.at(0);
-        if (std::holds_alternative<Atom>(first)) {
-            auto atom = std::get<Atom>(first);
-
-            switch(expr_types.at(atom.get_value<std::string>())) {
-                case ExprType::Define:
-                    compile_define(node);
-                    break;
-                case ExprType::If:
-                    compile_if(node);
-                    break;
-                case ExprType::Lambda:
-                    compile_lambda(node);
-                    break;
-                case ExprType::Plus:
-                case ExprType::Minus:
-                case ExprType::Mul:
-                case ExprType::Div:
-                case ExprType::Bt:
-                case ExprType::Lt:
-                case ExprType::Bte:
-                case ExprType::Lte:
-                case ExprType::Ne:
-                case ExprType::Eq:
-                    compile_binary(node);
-                    break;
-                default:
-                    throw std::runtime_error("compile_list: Not Implemented");
-            }
-
+        switch(node->get_type()) {
+            case NodeType::Define:
+                compile_define(static_cast<const Define*>(node));
+                break;
+            case NodeType::IfExpr:
+                compile_if(static_cast<const IfExpr*>(node));
+                break;
+            case NodeType::Lambda:
+                compile_lambda(static_cast<const Lambda*>(node));
+                break;
+            case NodeType::BinaryExpr:
+                compile_binary(static_cast<const BinaryExpr*>(node));
+                break;
+            default:
+                throw std::runtime_error("compile_list: Not Implemented");
         }
+
         fo->next_reg--;
     }
 
-    void Compiler::compile_atom(const Atom& node) {
+    void Compiler::compile_atom(const AtomicNode* node) {
         auto fo = active_objs_.top();
         uint32_t inst;
         BVM::BoltValue value;
-        switch(node.get_type()) {
-            case NodeType::BooleanLiteral:
-                value.as_bool = node.get_value<bool>();
+        switch(node->get_value()->get_type()) {
+            case SExprType::BoolLiteral:
+                value.as_bool = static_cast<const BoolAtom*>(node->get_value())->get_value();
                 value.type = BVM::BoltType::Boolean;
                 break;
-            case NodeType::FloatLiteral:
-                value.as_double = node.get_value<double>();
+            case SExprType::FloatLiteral:
+                value.as_double= static_cast<const FloatAtom*>(node->get_value())->get_value();
                 value.type = BVM::BoltType::Float;
                 break;
-            case NodeType::IntegerLiteral:
-                value.as_double = node.get_value<int64_t>();
+            case SExprType::IntLiteral:
+                value.as_int = static_cast<const IntAtom*>(node->get_value())->get_value();
                 value.type = BVM::BoltType::Integer;
                 break;
-            case NodeType::SymbolLiteral:
+            case SExprType::SymbolLiteral:
                 return;
             default:
                 throw std::logic_error("unsupported atomic value");
@@ -153,63 +132,58 @@ namespace Lisp {
     }
 
     /* (if cond if-expr else-expr) */
-    void Compiler::compile_if(const List& node) {
+    void Compiler::compile_if(const IfExpr* node) {
         auto fo = active_objs_.top();
         unsigned int r1, r2, r3, prev_reg_state = fo->next_reg;
-        auto elems = node.get_elems();
         // compile condition
-        r1 = compile_expr(elems[1]); 
+        r1 = compile_expr(node->get_cond()); 
         // reserve space for the instruction
         fo->instructions.push_back(0);
         size_t if_pos = fo->instructions.size();
-        r2 = compile_expr(elems[2]);
+        r2 = compile_expr(node->get_texpr());
         fo->instructions.push_back(BVM::Emitter::mov(prev_reg_state - 1, r2));
         size_t else_pos = fo->instructions.size();
-        r3 = compile_expr(elems[3]);
+        r3 = compile_expr(node->get_fexpr());
         fo->instructions.push_back(BVM::Emitter::mov(prev_reg_state - 1, r3));
         fo->instructions[if_pos - 1] = BVM::Emitter::jmp_if_false(r1, else_pos - if_pos);
         fo->next_reg = prev_reg_state;
-
-
     }
 
-    void Compiler::compile_binary(const List& node) {
+    void Compiler::compile_binary(const BinaryExpr* node) {
         auto fo = active_objs_.top();
         unsigned int r1, r2, prev_reg_state = fo->next_reg;
-        auto elems = node.get_elems();
-        r1 = compile_expr(elems[1]);
-        r2 = compile_expr(elems[2]);
-        const std::string& proc_name = std::get<Atom>(elems[0]).get_value<std::string>();
+        r1 = compile_expr(node->get_left());
+        r2 = compile_expr(node->get_right());
         uint32_t inst;
-        switch(expr_types.at(proc_name)) {
-            case ExprType::Plus:
+        switch(node->get_op()) {
+            case BinaryOp::Add:
                 inst = BVM::Emitter::add(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Minus:
+            case BinaryOp::Sub:
                 inst = BVM::Emitter::sub(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Div:
+            case BinaryOp::Div:
                 inst = BVM::Emitter::div(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Mul:
+            case BinaryOp::Mul:
                 inst = BVM::Emitter::mul(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Bte:
+            case BinaryOp::Bte:
                 inst = BVM::Emitter::bte(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Bt:
+            case BinaryOp::Bt:
                 inst = BVM::Emitter::bt(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Lte:
+            case BinaryOp::Lte:
                 inst = BVM::Emitter::lte(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Lt:
+            case BinaryOp::Lt:
                 inst = BVM::Emitter::lt(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Eq:
+            case BinaryOp::Eq:
                 inst = BVM::Emitter::eq(prev_reg_state - 1, r1, r2);
                 break;
-            case ExprType::Ne:
+            case BinaryOp::Ne:
                 inst = BVM::Emitter::ne(prev_reg_state - 1, r1, r2);
                 break;
             default:

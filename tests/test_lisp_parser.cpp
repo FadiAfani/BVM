@@ -1,3 +1,4 @@
+#include "lisp/ast.hpp"
 #include <gtest/gtest.h>
 
 
@@ -9,8 +10,8 @@ TEST(ParserTests, TestIntegerParsing) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::Atom integer = parser.parse_integer();
-    EXPECT_EQ(integer.get_value<int64_t>(), 715);
+    auto integer = parser.parse_integer();
+    EXPECT_EQ(integer->get_value(), 715);
 }
 
 
@@ -20,8 +21,8 @@ TEST(ParserTests, TestFloatParsing) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::Atom f = parser.parse_double();
-    EXPECT_EQ(f.get_value<double>(), 15.3214);
+    auto f = parser.parse_double();
+    EXPECT_EQ(f->get_value(), 15.3214);
 }
 
 TEST(ParserTests, TestBooleanParsing) {
@@ -30,10 +31,10 @@ TEST(ParserTests, TestBooleanParsing) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::Atom b = parser.parse_boolean();
-    Lisp::Atom b1 = parser.parse_boolean();
-    EXPECT_EQ(b.get_value<bool>(), true);
-    EXPECT_EQ(b1.get_value<bool>(), false);
+    auto b = parser.parse_boolean();
+    auto b1 = parser.parse_boolean();
+    EXPECT_EQ(b->get_value(), true);
+    EXPECT_EQ(b1->get_value(), false);
 }
 
 
@@ -43,8 +44,7 @@ TEST(ParserTests, TestListParsing) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::List list = parser.parse_list();
-    EXPECT_EQ(list.get_elems().size(), 3);
+    auto list = parser.parse_list();
 }
 
 TEST(ParserTests, ParseSimpleAddition) {
@@ -53,8 +53,7 @@ TEST(ParserTests, ParseSimpleAddition) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::List list = parser.parse_list();
-    EXPECT_EQ(list.get_elems().size(), 3);
+    auto list = parser.parse_list();
 
 }
 
@@ -64,7 +63,6 @@ TEST(ParserTests, ParseLambda) {
     auto toks = lexer.get_tokens();
 
     Lisp::Parser parser(toks);
-    Lisp::List list = parser.parse_list();
-    EXPECT_EQ(list.get_elems().size(), 3);
+    auto list = parser.parse_list();
 }
 

@@ -9,7 +9,7 @@ namespace Lisp {
     const Token& Parser::peek(size_t n) { return tokens_.at(cur_ + n); }
     const Token& Parser::peek() { return peek(0); }
 
-    std::unique_ptr<SExpr> Parser::parse_integer() {
+    std::unique_ptr<IntAtom> Parser::parse_integer() {
         auto t = peek();
         if (t.type != TokenType::Integer)
             throw "unexpected token: " + t.value;
@@ -21,7 +21,7 @@ namespace Lisp {
         return std::make_unique<IntAtom>(res);
     }
 
-    std::unique_ptr<SExpr> Parser::parse_double() {
+    std::unique_ptr<FloatAtom> Parser::parse_double() {
         auto t = peek();
         double res = 0.0, n = 0.1;
         size_t i = 0;
@@ -43,7 +43,7 @@ namespace Lisp {
         return std::make_unique<FloatAtom>(res);
     }
 
-    std::unique_ptr<SExpr> Parser::parse_boolean() {
+    std::unique_ptr<BoolAtom> Parser::parse_boolean() {
         char c;
         auto t1 = peek(), t2 = peek(1);
         if (t1.type == TokenType::Pound && t2.type == TokenType::Identifier) {
@@ -60,7 +60,7 @@ namespace Lisp {
         throw std::runtime_error("not a valid boolean value: " + t1.value);
     }
 
-    std::unique_ptr<SExpr> Parser::parse_symbol() {
+    std::unique_ptr<SymbolAtom> Parser::parse_symbol() {
         auto t = peek();
         std::unique_ptr<SExpr> s = std::make_unique<SymbolAtom>(t.value);
         if (t.type == TokenType::Identifier || t.type == TokenType::Keyword) {

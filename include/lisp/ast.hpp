@@ -24,7 +24,13 @@ namespace Lisp {
         public:
             virtual ~SExpr() = default;
             virtual const std::string print() = 0;
-            SExprType get_type() { return type_; }
+            SExprType get_type() const { return type_; }
+            inline bool is_list() {
+                return type_ == SExprType::List;
+            }
+            inline bool is_atom() {
+                return type_ != SExprType::List;
+            }
     };
 
     template<typename T>
@@ -32,7 +38,7 @@ namespace Lisp {
         protected:
             T value_;
         public:
-            const T& get_value() {
+            const T& get_value() const {
                 return value_;
             }
     };
@@ -75,8 +81,9 @@ namespace Lisp {
             List();
             List(std::vector<std::unique_ptr<SExpr>> elems);
             void add_elem(std::unique_ptr<SExpr> expr);
-            const std::vector<SExpr>& get_elems() const;
-            const std::string print() override;
+            const std::vector<std::unique_ptr<SExpr>>& get_elems() const;
+            std::unique_ptr<SExpr> move_elem(size_t i);
+            //const std::string print() override;
     };
 
 
@@ -99,6 +106,7 @@ namespace Lisp {
         Eq,
         Ne,
         ListExpr,
+        Atomic,
     };
 
     class ASTNode {
@@ -123,36 +131,68 @@ namespace Lisp {
         std::unordered_map<std::string, Symbol> symbol_table;
 
         Symbol* lookup(const std::string& name);
+        void insert(const std::string id, Symbol sym);
+    };
+
+    class AtomicNode : public ASTNode {
+        private:
+            std::unique_ptr<SExpr> value_;
+        public:
+            AtomicNode(std::unique_ptr<SExpr> value);
+            const SExpr* get_value() const;
+            
     };
 
     class Lambda : public ASTNode {
         private:
+            std::string id_;
             Scope scope_;
-            std::unique_ptr<ASTNode> expr_;
+            std::vector<std::unique_ptr<AtomicNode>> parameters_;
+            std::vector<std::unique_ptr<ASTNode>> exprs_;
         public:
-            void set_expr(std::unique_ptr<ASTNode> expr);
-            const ASTNode* get_expr() const;
             Lambda();
+            void insert_parameter(std::unique_ptr<AtomicNode> p);
+            void insert_expr(std::unique_ptr<ASTNode> expr);
+            const std::vector<std::unique_ptr<AtomicNode>>& get_parameters() const;
+            const std::vector<std::unique_ptr<ASTNode>>& get_exprs() const;
+            std::unique_ptr<ASTNode> move_elem(size_t i);
+            Scope& get_scope() const;
+            const std::string& get_id() const;
     };
 
     class ListExpr : public ASTNode {
         private:
             std::vector<std::unique_ptr<ASTNode>> elems_;
         public:
-            const std::vector<std::unique_ptr<ASTNode>>& get_elems();
+            const std::vector<std::unique_ptr<ASTNode>>& get_elems() const;
             void add_elem(std::unique_ptr<ASTNode> elem);
             ListExpr();
     };
 
+    enum class BinaryOp {
+        Add,
+        Sub,
+        Mul,
+        Div,
+        Bte,
+        Bt,
+        Lte,
+        Lt,
+        Eq,
+        Ne,
+    };
+
     class BinaryExpr : public ASTNode {
         private:
+            BinaryOp op_;
             std::unique_ptr<ASTNode> left_;
             std::unique_ptr<ASTNode> right_;
         public:
             void set_left(std::unique_ptr<ASTNode> left);
             void set_right(std::unique_ptr<ASTNode> right);
-            const ASTNode* get_left();
-            const ASTNode* get_right();
+            const ASTNode* get_left() const;
+            const ASTNode* get_right() const;
+            BinaryOp get_op() const;
             BinaryExpr();
     };
 
@@ -165,9 +205,9 @@ namespace Lisp {
             void set_cond(std::unique_ptr<ASTNode> cond);
             void set_texpr(std::unique_ptr<ASTNode> true_expr);
             void set_fexpr(std::unique_ptr<ASTNode> false_expr);
-            const ASTNode* get_cond();
-            const ASTNode* get_texpr();
-            const ASTNode* get_fexpr();
+            const ASTNode* get_cond() const;
+            const ASTNode* get_texpr() const;
+            const ASTNode* get_fexpr() const;
             IfExpr();
     };
 
@@ -178,8 +218,8 @@ namespace Lisp {
         public:
             void set_id(std::string id);
             void set_expr(std::unique_ptr<ASTNode> expr);
-            const std::string& get_id();
-            const ASTNode* get_expr();
+            const std::string& get_id() const;
+            const ASTNode* get_expr() const;
             Define();
     };
 

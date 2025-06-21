@@ -20,10 +20,10 @@ namespace Lisp {
             const Token& peek(size_t n);
             inline void consume() { cur_++; }
             Program parse();
-            std::unique_ptr<SExpr> parse_symbol();
-            std::unique_ptr<SExpr> parse_boolean();
-            std::unique_ptr<SExpr> parse_integer();
-            std::unique_ptr<SExpr> parse_double();
+            std::unique_ptr<SymbolAtom> parse_symbol();
+            std::unique_ptr<BoolAtom> parse_boolean();
+            std::unique_ptr<IntAtom> parse_integer();
+            std::unique_ptr<FloatAtom> parse_double();
             std::unique_ptr<SExpr> parse_atom();
             std::unique_ptr<SExpr> parse_list();
             std::unique_ptr<SExpr> parse_expr();

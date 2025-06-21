@@ -37,23 +37,21 @@ namespace Lisp {
     class Compiler {
 
         private:
-            std::unique_ptr<AnnotatedProgram> program_;
             std::ofstream out_;
             std::stack<Scope*> active_scopes_;
             std::vector<std::unique_ptr<FuncObj>> func_objs_;
             std::stack<FuncObj*> active_objs_;
 
         public:
-            Compiler(std::unique_ptr<AnnotatedProgram> program);
-            void compile();
-            unsigned int compile_expr(const Expr& node);
-            void compile_atom(const Atom& node);
-            void compile_list(const List& node);
-            void compile_qoute(const List& node);
-            void compile_define(const List& node);
-            void compile_lambda(const List& node);
-            void compile_if(const List& node);
-            void compile_binary(const List& node);
+            Compiler();
+            void compile(const Lambda* node);
+            unsigned int compile_expr(const ASTNode* node);
+            void compile_atom(const AtomicNode* node);
+            void compile_list(const ASTNode* node);
+            void compile_define(const Define* node);
+            void compile_lambda(const Lambda* node);
+            void compile_if(const IfExpr* node);
+            void compile_binary(const BinaryExpr* node);
 
             inline void free_reg(unsigned int n_regs) {
                 auto fo = active_objs_.top();
@@ -61,10 +59,7 @@ namespace Lisp {
                     throw std::logic_error("not enough registers to free");
                 fo->next_reg -= n_regs;
             }
-            inline void alloc_reg(const Expr& node) {
-                auto fo = active_objs_.top();
-                fo->next_reg++;
-            }
+
             const std::vector<std::unique_ptr<FuncObj>>& get_objs();
 
     };

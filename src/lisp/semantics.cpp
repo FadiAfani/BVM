@@ -1,74 +1,71 @@
 #include <cassert>
 #include<lisp/semantics.hpp>
 #include <stdexcept>
-#include <variant>
 
 namespace Lisp {
 
-    Symbol* Scope::lookup(const std::string& name) {
-        Scope* cur = this;
-        while (cur) {
-            if (cur->symbol_table.contains(name))
-                return &cur->symbol_table[name];
-            cur = cur->parent;
+
+
+    SemanticAnalyzer::SemanticAnalyzer(Program& program) : program_(program) {}
+
+    
+    std::unique_ptr<Lambda> SemanticAnalyzer::verify() {
+        auto main = std::make_unique<Lambda>();
+        auto gs = std::make_unique<Scope>();
+        scopes_.push(gs.get());
+
+        for (auto& expr : program_) {
+            verify_sexpr(std::move(expr));
+        }
+
+        return std::move(main);
+    }
+
+
+    std::unique_ptr<ASTNode> SemanticAnalyzer::verify_sexpr(std::unique_ptr<SExpr> sexpr) {
+        switch(sexpr->get_type()) {
+            case SExprType::SymbolLiteral:
+                return verify_symbol(std::unique_ptr<SymbolAtom>(static_cast<SymbolAtom*>(sexpr.release())));
+            case SExprType::List:
+                return verify_list(std::unique_ptr<List>(static_cast<List*>(sexpr.release())));
+            case SExprType::BoolLiteral:
+            case SExprType::FloatLiteral:
+            case SExprType::IntLiteral:
+            case SExprType::StringLiteral:
+                return std::make_unique<AtomicNode>(std::move(sexpr));
+
+        }
+
+    }
+
+    std::unique_ptr<AtomicNode> SemanticAnalyzer::verify_symbol(std::unique_ptr<SymbolAtom> sexpr) {
+
+        Scope* env = scopes_.top();
+        if (!reserved_keywords.contains(sexpr->get_value())) {
+            if (env->symbol_table.size() >= 255)
+                throw std::runtime_error("Can't have more than 255 active locals");
+            auto name = sexpr->get_value();
+            uint8_t reg = env->symbol_table.size();
+            auto node = std::make_unique<AtomicNode>(std::move(sexpr));
+            env->symbol_table[name] = {reg, node.get()};
+            return std::move(node);
         }
         return nullptr;
     }
 
-    SemanticAnalyzer::SemanticAnalyzer() {}
-
-    SemanticAnalyzer::SemanticAnalyzer(Program program) {
-        annotated_program_ = std::make_unique<AnnotatedProgram>();
-        annotated_program_->program = std::move(program);
-    }
-
-    
-    std::unique_ptr<AnnotatedProgram> SemanticAnalyzer::analyze_program() {
-        auto gs = std::make_unique<Scope>();
-        scopes_.push(gs.get());
-        annotated_program_->globals = std::move(gs);
-
-        for (const Expr& sexpr : annotated_program_->program) {
-            if (std::holds_alternative<List>(sexpr))
-                visit(std::get<List>(sexpr));
-            else
-                visit(std::get<Atom>(sexpr));
-        }
-
-        return std::move(annotated_program_);
-    }
-
-
-    void SemanticAnalyzer::visit(const Atom& node) {
-        Scope* env = scopes_.top();
-        if (node.get_type() == NodeType::SymbolLiteral 
-                && !reserved_keywords.contains(node.get_value<std::string>())) {
-
-            if (env->symbol_table.size() >= 255)
-                throw std::runtime_error("Can't have more than 255 active locals");
-            auto name = node.get_value<std::string>();
-            uint8_t reg = env->symbol_table.size();
-            env->symbol_table[name] = {reg, &node};
-        }
-    }
-
-    void SemanticAnalyzer::visit(const List& node) {
-        //printf("%s\n", node.print().data());
-        auto first = node.get_elems().at(0);
-        if (std::holds_alternative<Atom>(first)) {
-            const std::string& name = std::get<Atom>(first).get_value<std::string>();
-            switch(expr_types.at(name)) {
+    std::unique_ptr<ASTNode> SemanticAnalyzer::verify_list(std::unique_ptr<List> sexpr) {
+        auto first = sexpr->get_elems().at(0).get();
+        if (first->is_atom()) {
+            const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
+            switch(reserved_funcs.at(name)) {
                 case ExprType::Define:
-                    verify_define(node);
+                    return verify_define(std::move(sexpr));
                     break;
                 case ExprType::Lambda:
-                {
-                    verify_lambda(node);
+                    return verify_lambda(std::move(sexpr));
                     break;
-                }
-
                 case ExprType::If:
-                    verify_if(node);
+                    return verify_if(std::move(sexpr));
                     break;
                 case ExprType::Plus:
                 case ExprType::Minus:
@@ -80,131 +77,94 @@ namespace Lisp {
                 case ExprType::Lte:
                 case ExprType::Eq:
                 case ExprType::Ne:
-                    verify_binary(node);
+                    return verify_binary(std::move(sexpr));
                     break;
 
                 default:
                     std::logic_error("Not Implemented");
             }
         }
-
+        return nullptr;
     }
 
-    void SemanticAnalyzer::verify_define(const List& node) {
-        auto elems = node.get_elems();
-        auto symbol = std::get<Atom>(elems.at(1));
-        
-        if (elems.size() != 3)
-            throw std::runtime_error("ill-formed define");
-        if (std::holds_alternative<Atom>(elems[1]) && std::get<Atom>(elems[1]).get_type() != NodeType::SymbolLiteral) {
-            throw std::runtime_error("expected a symbol after 'define'");
-        }
 
-        if (std::holds_alternative<List>(elems[2]) && !has_value(std::get<List>(elems[2])))
-            throw std::runtime_error("expression does not produce a value");
+    std::unique_ptr<Define> SemanticAnalyzer::verify_define(std::unique_ptr<List> sexpr) {
+        auto& elems = sexpr->get_elems();
+        auto node = std::make_unique<Define>();
+        if (elems.size() != 3 || elems[1]->get_type() != SExprType::SymbolLiteral)
+            throw std::runtime_error("malformed define");
+        auto sym = static_cast<SymbolAtom*>(elems[1].get());
+        auto e = sexpr->move_elem(2);
+        auto expr = verify_sexpr(std::move(e));
 
-        for (auto& expr : elems) {
-            std::visit([&](auto&& e) { visit(e); }, expr);
-        }
+        node->set_id(sym->get_value());
+        node->set_expr(std::move(expr));
 
+        return node;
     }
 
-    void SemanticAnalyzer::verify_lambda(const List& node) {
-        printf("%p\n", &node);
-        auto elems = node.get_elems();
-        annotated_program_->scopes[&node] = std::make_unique<Scope>();
-        Scope* ns = annotated_program_->scopes[&node].get();
-        ns->parent = scopes_.top();
-        scopes_.push(ns);
+    std::unique_ptr<BinaryExpr> SemanticAnalyzer::verify_binary(std::unique_ptr<List> sexpr) {
+        auto& elems = sexpr->get_elems();
+        auto node = std::make_unique<BinaryExpr>();
+        if (elems.size() != 3) 
+            throw std::runtime_error("malformed operation");
 
-        if (elems.size() < 3) {
-            throw std::runtime_error("malformed lambda expression");
-        }
+        auto lhs = verify_sexpr(sexpr->move_elem(1));
+        auto rhs = verify_sexpr(sexpr->move_elem(2));
+        node->set_left(std::move(lhs));
+        node->set_right(std::move(rhs));
 
-        if (!std::holds_alternative<List>(elems.at(1))) {
-            throw std::runtime_error("expected a list of arguments after 'lambda'");
-        }
-
-        auto& params = std::get<List>(elems[1]);
-
-        for (auto& p : params.get_elems()) {
-            if (!std::holds_alternative<Atom>(p))
-                throw std::runtime_error("parameters should be atomic");
-            visit(std::get<Atom>(p));
-        }
-        visit(std::get<List>(elems[2]));
+        return std::move(node);
     }
 
-    void SemanticAnalyzer::verify_if(const List& node) {
-        auto elems = node.get_elems();
-
-        if (elems.size() < 4 || !std::holds_alternative<Atom>(elems[0]) || std::get<Atom>(elems[0]).get_value<std::string>() != "if")
+    std::unique_ptr<IfExpr> SemanticAnalyzer::verify_if(std::unique_ptr<List> sexpr) {
+        auto& elems = sexpr->get_elems();
+        auto node = std::make_unique<IfExpr>();
+        if (elems.size() != 4)
             throw std::runtime_error("malformed if expression");
 
-        for (auto& expr : elems) {
-            std::visit([&](auto&& e) { visit(e); }, expr);
-        }
-    }
+        auto cond = verify_sexpr(sexpr->move_elem(1));
+        auto texpr = verify_sexpr(sexpr->move_elem(2));
+        auto fexpr = verify_sexpr(sexpr->move_elem(3));
+        node->set_cond(std::move(cond));
+        node->set_texpr(std::move(texpr));
+        node->set_fexpr(std::move(fexpr));
 
-    void SemanticAnalyzer::verify_qoute(const List& node) {
-        auto elems = node.get_elems();
-
-        if (elems.size() != 2)
-            throw std::runtime_error("qoute is only applicable to a single expression");
-
-        for (auto& expr : elems) {
-            std::visit([&](auto&& e) { visit(e); }, expr);
-        }
-    }
-
-    void SemanticAnalyzer::verify_set(const List& node) {
-        auto elems = node.get_elems();
-
-        if (elems.size() != 3) {
-            throw std::runtime_error("malformed set! expression");
-        }
-
-        for (auto& expr : elems) {
-            std::visit([&](auto&& e) { visit(e); }, expr);
-        }
-    }
-
-    bool SemanticAnalyzer::has_value(const List& node) {
-        if (node.get_elems().size() == 0)
-            return true;
-
-        auto symbol = node.get_elems()[0];
-
-        if (std::holds_alternative<List>(symbol))
-            return false;
-
-        switch(expr_types.at(std::get<Atom>(symbol).get_value<std::string>().data())) {
-            case ExprType::Lambda:
-            case ExprType::Qoute:
-            case ExprType::Cons:
-                return true;
-            case ExprType::Set:
-            case ExprType::Define:
-                return false;
-
-            default:
-                std::logic_error("SemanticAnalyzer::has_value - Not Implemented");
-
-        }
-
-        return false;
+        return std::move(node);
 
     }
 
-    void SemanticAnalyzer::verify_binary(const List& node) {
-        auto elems = node.get_elems();
-        if (elems.size() != 3)
-            throw std::runtime_error("binary expression cannot have more than two operands");
+    std::unique_ptr<Lambda> SemanticAnalyzer::verify_lambda(std::unique_ptr<List> sexpr) {
+        auto& elems = sexpr->get_elems();
+        auto node = std::make_unique<Lambda>();
+        if (elems.size() != 3 || !elems[1]->is_list())
+            throw std::runtime_error("malformed lambda");
 
-        for (auto& expr : elems) {
-            std::visit([&](auto&& e) { visit(e); }, expr);
+        List* ps_list = static_cast<List*>(elems[1].get());
+        auto& ps = ps_list->get_elems();
+        for (size_t i = 0; i < ps.size(); i++) {
+            auto e = ps_list->move_elem(i);
+            if (!e->is_atom())
+                throw std::runtime_error("not a valid parameter");
+            scopes_.push(&node->get_scope());
+            auto atom = verify_symbol(std::unique_ptr<SymbolAtom>(static_cast<SymbolAtom*>(e.release())));
+            node->insert_parameter(std::move(atom));
         }
+
+        auto expr = verify_sexpr(sexpr->move_elem(2));
+
+        return std::move(node);
     }
 
+    std::unique_ptr<ListExpr> SemanticAnalyzer::verify_list_expr(std::unique_ptr<List> sexpr) {
+        auto& elems = sexpr->get_elems();
+        auto node = std::make_unique<ListExpr>();
+        for (size_t i = 0; i < elems.size(); i++) {
+            auto expr = sexpr->move_elem(i);
+            auto expr_node = verify_sexpr(std::move(expr));
+            node->add_elem(std::move(expr_node));
+        }
+        return std::move(node);
+    }
 
 }

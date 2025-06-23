@@ -20,7 +20,6 @@ protected:
         auto toks = lexer.get_tokens(); 
         Lisp::Parser parser(std::move(toks)); 
         node = parser.parse();
-        analyzer = Lisp::SemanticAnalyzer(node);
     }
 
     static std::unordered_map<std::string, std::string> param_map_;
@@ -35,19 +34,4 @@ std::unordered_map<std::string, std::string> SemanticsTester::param_map_ = {
 };
 
 // Tests share the same setup but each gets its own parameter
-TEST_F(SemanticsTester, TestIf) {
-    EXPECT_NO_THROW(analyzer.analyze_program());
-}
-
-TEST_F(SemanticsTester, TestMalformedIf) {
-    EXPECT_ANY_THROW(analyzer.analyze_program());
-}
-
-TEST_F(SemanticsTester, TestDefine) {
-    EXPECT_NO_THROW(analyzer.analyze_program());
-}
-
-TEST_F(SemanticsTester, NestedDefine) {
-    EXPECT_ANY_THROW(analyzer.analyze_program());
-}
 

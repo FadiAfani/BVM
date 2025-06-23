@@ -11,11 +11,11 @@ namespace Lisp {
     
     std::unique_ptr<Lambda> SemanticAnalyzer::verify() {
         auto main = std::make_unique<Lambda>();
-        auto gs = std::make_unique<Scope>();
-        scopes_.push(gs.get());
+        scopes_.push(&main->get_scope());
 
         for (auto& expr : program_) {
-            verify_sexpr(std::move(expr));
+            auto node = verify_sexpr(std::move(expr));
+            main->insert_expr(std::move(node));
         }
 
         return std::move(main);
@@ -55,18 +55,16 @@ namespace Lisp {
 
     std::unique_ptr<ASTNode> SemanticAnalyzer::verify_list(std::unique_ptr<List> sexpr) {
         auto first = sexpr->get_elems().at(0).get();
+
         if (first->is_atom()) {
             const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
             switch(reserved_funcs.at(name)) {
                 case ExprType::Define:
                     return verify_define(std::move(sexpr));
-                    break;
                 case ExprType::Lambda:
                     return verify_lambda(std::move(sexpr));
-                    break;
                 case ExprType::If:
                     return verify_if(std::move(sexpr));
-                    break;
                 case ExprType::Plus:
                 case ExprType::Minus:
                 case ExprType::Div:
@@ -78,7 +76,6 @@ namespace Lisp {
                 case ExprType::Eq:
                 case ExprType::Ne:
                     return verify_binary(std::move(sexpr));
-                    break;
 
                 default:
                     std::logic_error("Not Implemented");
@@ -94,13 +91,14 @@ namespace Lisp {
         if (elems.size() != 3 || elems[1]->get_type() != SExprType::SymbolLiteral)
             throw std::runtime_error("malformed define");
         auto sym = static_cast<SymbolAtom*>(elems[1].get());
+        auto symbol = verify_sexpr(sexpr->move_elem(1));
         auto e = sexpr->move_elem(2);
         auto expr = verify_sexpr(std::move(e));
 
         node->set_id(sym->get_value());
         node->set_expr(std::move(expr));
 
-        return node;
+        return std::move(node);
     }
 
     std::unique_ptr<BinaryExpr> SemanticAnalyzer::verify_binary(std::unique_ptr<List> sexpr) {
@@ -113,6 +111,8 @@ namespace Lisp {
         auto rhs = verify_sexpr(sexpr->move_elem(2));
         node->set_left(std::move(lhs));
         node->set_right(std::move(rhs));
+        auto sym = elems[0].get();
+        node->set_op(reserved_funcs.at(static_cast<SymbolAtom*>(sym)->get_value()));
 
         return std::move(node);
     }

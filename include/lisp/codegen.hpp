@@ -38,7 +38,7 @@ namespace Lisp {
 
         private:
             std::ofstream out_;
-            std::stack<Scope*> active_scopes_;
+            std::stack<const Scope*> active_scopes_;
             std::vector<std::unique_ptr<FuncObj>> func_objs_;
             std::stack<FuncObj*> active_objs_;
 

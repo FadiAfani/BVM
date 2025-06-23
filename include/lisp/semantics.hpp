@@ -4,48 +4,10 @@
 #include "lisp/ast.hpp"
 #include <lisp/parser.hpp>
 #include <stack>
-#include <unordered_map>
 
 namespace Lisp {
 
 
-    enum class ExprType {
-        Lambda,
-        Define,
-        Cons,
-        Qoute,
-        Set,
-        If,
-        Plus,
-        Minus,
-        Mul,
-        Div,
-        Bt,
-        Lt,
-        Bte,
-        Lte,
-        Eq,
-        Ne,
-    };
-
-
-    const std::unordered_map<std::string, ExprType> reserved_funcs = {
-        {"lambda", ExprType::Lambda},
-        {"define", ExprType::Define},
-        {"cons", ExprType::Cons},
-        {"qoute", ExprType::Qoute},
-        {"set!", ExprType::Set},
-        {"if", ExprType::If},
-        {"+", ExprType::Plus},
-        {"-", ExprType::Minus},
-        {"*", ExprType::Mul},
-        {">", ExprType::Bt},
-        {">=", ExprType::Bte},
-        {"<", ExprType::Lt},
-        {"<=", ExprType::Lte},
-        {"/=", ExprType::Ne},
-        {"=", ExprType::Eq},
-    };
 
 
     class SemanticAnalyzer {

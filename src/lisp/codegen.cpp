@@ -17,22 +17,18 @@ namespace Lisp {
 
     const std::vector<std::unique_ptr<FuncObj>>& Compiler::get_objs() { return func_objs_; }
 
+    Compiler::Compiler() {}
+
 
     void Compiler::compile(const Lambda* program) {
-        auto ep = std::make_unique<FuncObj>();
-        active_objs_.push(ep.get());
-        active_scopes_.push(&program->get_scope());
-        func_objs_.push_back(std::move(ep));
-        for (auto& e : program->get_exprs()) {
-            compile_expr(e.get());
-        }
+        compile_lambda(program);
     }
 
     unsigned int Compiler::compile_expr(const ASTNode* node) {
         auto fo = active_objs_.top();
         auto scope = active_scopes_.top();
         unsigned int reg;
-        if (node->get_type() != NodeType::Atomic) {
+        if (node->get_type() == NodeType::Atomic) {
             const AtomicNode* atom = static_cast<const AtomicNode*>(node);
             if (atom->get_value()->get_type() != SExprType::SymbolLiteral)
                 reg = fo->next_reg++;
@@ -63,15 +59,15 @@ namespace Lisp {
         auto nfo = std::make_unique<FuncObj>();
         auto& params = node->get_parameters();
         int arity = params.size();
-        int n_locals = node->get_scope().symbol_table.size();
+        int n_locals = node->get_const_scope().symbol_table.size();
         FuncObj* ptr = nfo.get();
         ptr->n_locals = n_locals;
         ptr->next_reg = arity + n_locals;
-        ptr->name = node->get_id();
 
         active_objs_.push(ptr);
+        active_scopes_.push(&node->get_const_scope());
         func_objs_.push_back(std::move(nfo));
-        
+
         for (auto& e : node->get_exprs()) {
             compile_expr(e.get());
         }
@@ -156,34 +152,34 @@ namespace Lisp {
         r2 = compile_expr(node->get_right());
         uint32_t inst;
         switch(node->get_op()) {
-            case BinaryOp::Add:
+            case ExprType::Plus:
                 inst = BVM::Emitter::add(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Sub:
+            case ExprType::Minus:
                 inst = BVM::Emitter::sub(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Div:
+            case ExprType::Div:
                 inst = BVM::Emitter::div(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Mul:
+            case ExprType::Mul:
                 inst = BVM::Emitter::mul(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Bte:
+            case ExprType::Bte:
                 inst = BVM::Emitter::bte(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Bt:
+            case ExprType::Bt:
                 inst = BVM::Emitter::bt(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Lte:
+            case ExprType::Lte:
                 inst = BVM::Emitter::lte(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Lt:
+            case ExprType::Lt:
                 inst = BVM::Emitter::lt(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Eq:
+            case ExprType::Eq:
                 inst = BVM::Emitter::eq(prev_reg_state - 1, r1, r2);
                 break;
-            case BinaryOp::Ne:
+            case ExprType::Ne:
                 inst = BVM::Emitter::ne(prev_reg_state - 1, r1, r2);
                 break;
             default:

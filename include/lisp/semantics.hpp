@@ -5,6 +5,8 @@
 #include <lisp/parser.hpp>
 #include <stack>
 
+#define MAX_REGS 255
+
 namespace Lisp {
 
 

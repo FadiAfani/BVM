@@ -66,3 +66,13 @@ TEST(ParserTests, ParseLambda) {
     auto list = parser.parse_list();
 }
 
+TEST(ParserTests, TestQuotedExpr) {
+    Lisp::Lexer lexer("'(1 2 3)");
+    lexer.tokenize();
+    auto toks = lexer.get_tokens();
+    Lisp::Parser parser(toks);
+
+    auto expr = parser.parse_qouted_expr();
+
+}
+

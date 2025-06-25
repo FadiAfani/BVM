@@ -33,6 +33,8 @@ namespace Lisp {
             case SExprType::IntLiteral:
             case SExprType::StringLiteral:
                 return std::make_unique<AtomicNode>(std::move(sexpr));
+            case Lisp::SExprType::QuotedExpr:
+                throw std::logic_error("verify_sexpr: qouted expressions are yet to be supported");
 
         }
 
@@ -42,7 +44,7 @@ namespace Lisp {
 
         Scope* env = scopes_.top();
         if (!reserved_keywords.contains(sexpr->get_value())) {
-            if (env->symbol_table.size() >= 255)
+            if (env->symbol_table.size() >= MAX_REGS)
                 throw std::runtime_error("Can't have more than 255 active locals");
             auto name = sexpr->get_value();
             uint8_t reg = env->symbol_table.size();
@@ -55,31 +57,34 @@ namespace Lisp {
 
     std::unique_ptr<ASTNode> SemanticAnalyzer::verify_list(std::unique_ptr<List> sexpr) {
         auto first = sexpr->get_elems().at(0).get();
+        if (!first->is_atom())
+            throw std::runtime_error("improper list structure");
 
-        if (first->is_atom()) {
-            const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
-            switch(reserved_funcs.at(name)) {
-                case ExprType::Define:
-                    return verify_define(std::move(sexpr));
-                case ExprType::Lambda:
-                    return verify_lambda(std::move(sexpr));
-                case ExprType::If:
-                    return verify_if(std::move(sexpr));
-                case ExprType::Plus:
-                case ExprType::Minus:
-                case ExprType::Div:
-                case ExprType::Mul:
-                case ExprType::Bt:
-                case ExprType::Lt:
-                case ExprType::Bte:
-                case ExprType::Lte:
-                case ExprType::Eq:
-                case ExprType::Ne:
-                    return verify_binary(std::move(sexpr));
+        const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
 
-                default:
-                    std::logic_error("Not Implemented");
-            }
+        switch(reserved_funcs.at(name)) {
+            case ExprType::Define:
+                return verify_define(std::move(sexpr));
+            case ExprType::Lambda:
+                return verify_lambda(std::move(sexpr));
+            case ExprType::If:
+                return verify_if(std::move(sexpr));
+            case ExprType::Plus:
+            case ExprType::Minus:
+            case ExprType::Div:
+            case ExprType::Mul:
+            case ExprType::Bt:
+            case ExprType::Lt:
+            case ExprType::Bte:
+            case ExprType::Lte:
+            case ExprType::Eq:
+            case ExprType::Ne:
+                return verify_binary(std::move(sexpr));
+            case ExprType::List:
+                return verify_list_expr(std::move(sexpr));
+
+            default:
+                std::logic_error("verify_list: Not Implemented");
         }
         return nullptr;
     }
@@ -151,20 +156,24 @@ namespace Lisp {
             node->insert_parameter(std::move(atom));
         }
 
-        auto expr = verify_sexpr(sexpr->move_elem(2));
+        for (size_t i = 2; i < sexpr->get_elems().size(); i++) {
+            auto expr = verify_sexpr(sexpr->move_elem(i));
+            node->insert_expr(std::move(expr));
+        }
+
 
         return std::move(node);
     }
 
     std::unique_ptr<ListExpr> SemanticAnalyzer::verify_list_expr(std::unique_ptr<List> sexpr) {
-        auto& elems = sexpr->get_elems();
         auto node = std::make_unique<ListExpr>();
-        for (size_t i = 0; i < elems.size(); i++) {
-            auto expr = sexpr->move_elem(i);
-            auto expr_node = verify_sexpr(std::move(expr));
-            node->add_elem(std::move(expr_node));
+
+        for (size_t i = 1; i < sexpr->get_elems().size(); i++) {
+            auto e = verify_sexpr(sexpr->move_elem(i));
+            node->add_elem(std::move(e));
         }
-        return std::move(node);
+
+        return node;
     }
 
 }

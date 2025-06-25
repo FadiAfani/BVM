@@ -7,7 +7,6 @@
 #include <fstream>
 #include <stack>
 
-#define MAX_REGS 255
 
 namespace Lisp {
 
@@ -17,8 +16,6 @@ namespace Lisp {
      * */
 
     /* Function Objects 
-     * len_name
-     * func_name
      * n_locals
      * n_consts
      * [constants]
@@ -26,12 +23,25 @@ namespace Lisp {
      * [instructions]
      * */
 
-    struct FuncObj {
-        std::string name;
+    enum class ObjType {
+        List,
+        Function,
+    };
+
+    struct Obj {
+        ObjType type;
+    };
+
+    struct FuncObj : Obj {
         unsigned int n_locals;
-        std::unordered_map<BVM::BoltValue, size_t> consts;
+        std::unordered_map<BVM::BoltValue, int> consts;
         std::vector<uint32_t> instructions;
         unsigned int next_reg;
+    };
+
+    struct ListObj : Obj {
+        std::vector<int> erefs;
+
     };
 
     class Compiler {

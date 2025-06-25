@@ -76,6 +76,14 @@ namespace Lisp {
         return "( " + res + " )";
     }
 
+    QuotedExpr::QuotedExpr(std::unique_ptr<SExpr> sexpr) : sexpr_(std::move(sexpr)) { type_ = SExprType::QuotedExpr; }
+    
+    const SExpr* QuotedExpr::get_sexpr() { return sexpr_.get(); }
+
+    std::unique_ptr<SExpr> QuotedExpr::release_sexpr() { return std::move(sexpr_); }
+
+    const std::string QuotedExpr::print() const { return sexpr_->print(); }
+
     std::unique_ptr<SExpr> List::move_elem(size_t i) {
         return std::move(elems_.at(i));
     }

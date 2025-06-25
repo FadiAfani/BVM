@@ -27,6 +27,7 @@ namespace Lisp {
         Keyword,
         Identifier,
         Pound,
+        Apost,
         Lparen,
         Rparen,
         Float,

@@ -33,6 +33,12 @@ namespace Lisp {
                     tokens_.push_back(std::move(t));
                     i++;
                     break;
+                case '\'':
+                    t.type = TokenType::Apost;
+                    t.value = "'";
+                    tokens_.push_back(std::move(t));
+                    i++;
+                    break;
                 case '\r':
                 case '\n':
                     cur_row++;

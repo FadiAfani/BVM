@@ -25,6 +25,7 @@ namespace Lisp {
         Lte,
         Eq,
         Ne,
+        List,
     };
 
 
@@ -35,6 +36,7 @@ namespace Lisp {
         {"qoute", ExprType::Qoute},
         {"set!", ExprType::Set},
         {"if", ExprType::If},
+        {"list", ExprType::List},
         {"+", ExprType::Plus},
         {"-", ExprType::Minus},
         {"*", ExprType::Mul},
@@ -53,6 +55,7 @@ namespace Lisp {
         SymbolLiteral,
         StringLiteral,
         List,
+        QuotedExpr
     };
 
     class SExpr {
@@ -122,6 +125,16 @@ namespace Lisp {
             void add_elem(std::unique_ptr<SExpr> expr);
             const std::vector<std::unique_ptr<SExpr>>& get_elems() const;
             std::unique_ptr<SExpr> move_elem(size_t i);
+            const std::string print() const override;
+    };
+
+    class QuotedExpr : public SExpr {
+        private:
+            std::unique_ptr<SExpr> sexpr_;
+        public:
+            QuotedExpr(std::unique_ptr<SExpr> sexpr);
+            const SExpr* get_sexpr();
+            std::unique_ptr<SExpr> release_sexpr();
             const std::string print() const override;
     };
 
@@ -254,6 +267,20 @@ namespace Lisp {
             const ASTNode* get_expr() const;
             const std::string print() const override;
             Define();
+    };
+
+    class Cons : public ASTNode {
+        private:
+            std::unique_ptr<ASTNode> a_;
+            std::unique_ptr<ASTNode> b_;
+        public:
+            Cons();
+            void set_a(std::unique_ptr<ASTNode> a);
+            void set_b(std::unique_ptr<ASTNode> b);
+            const ASTNode* get_a();
+            const ASTNode* get_b();
+            const std::string print() const override;
+
     };
 
 }

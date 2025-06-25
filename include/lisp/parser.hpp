@@ -27,6 +27,7 @@ namespace Lisp {
             std::unique_ptr<SExpr> parse_atom();
             std::unique_ptr<SExpr> parse_list();
             std::unique_ptr<SExpr> parse_expr();
+            std::unique_ptr<SExpr> parse_qouted_expr();
 
 
 

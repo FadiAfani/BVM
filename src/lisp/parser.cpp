@@ -85,11 +85,12 @@ namespace Lisp {
             throw "expected '(' before a list expression";
         consume();
         while (peek().type != TokenType::Rparen)
-            exprs.push_back(std::move(parse_expr()));
+            exprs.push_back(std::move(parse_qouted_expr()));
         consume();
 
         return std::make_unique<List>(std::move(exprs));
     }
+
 
     std::unique_ptr<SExpr> Parser::parse_expr() {
         auto t = peek();
@@ -99,10 +100,18 @@ namespace Lisp {
         return parse_atom();
     }
 
+    std::unique_ptr<SExpr> Parser::parse_qouted_expr() {
+        auto t = peek();
+        if (t.type == TokenType::Apost)
+            consume();
+        std::unique_ptr<SExpr> e = parse_expr();
+        return std::make_unique<QuotedExpr>(std::move(e));
+    }
+
     Program Parser::parse() {
         std::vector<std::unique_ptr<SExpr>> exprs;
         while (peek().type != TokenType::Eof) {
-            exprs.push_back(std::move(parse_expr()));
+            exprs.push_back(std::move(parse_qouted_expr()));
         }
         return std::move(exprs);
     }

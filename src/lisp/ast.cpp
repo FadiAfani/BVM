@@ -14,6 +14,12 @@ namespace Lisp {
         }
         return nullptr;
     }
+
+    void Scope::insert(const std::string id, Symbol sym) {
+        if (sym.type == SymbolType::Variable)
+            n_vars++;
+        symbol_table[id] = sym;
+    }
     
 
     StringAtom::StringAtom(std::string value)  {
@@ -168,8 +174,6 @@ namespace Lisp {
         return "( " + res + " )";
     }
 
-    BinaryExpr::BinaryExpr() { type_ = NodeType::BinaryExpr; }
-
     const ASTNode* BinaryExpr::get_left() const { 
         return left_.get();
     }
@@ -293,4 +297,23 @@ namespace Lisp {
         return res;
 
     }
+
+    ProcCall::ProcCall() { type_ = NodeType::ProcCall; }
+
+    void ProcCall::add_arg(std::unique_ptr<ASTNode> arg) {
+        args_.push_back(std::move(arg));
+    }
+
+    void ProcCall::set_proc(std::unique_ptr<AtomicNode> node) {
+        proc_ = std::move(node);
+    }
+
+    const std::string ProcCall::print() const { throw std::runtime_error("ProcCall: print not implemented"); }
+
+
+    const std::vector<std::unique_ptr<ASTNode>>& ProcCall::get_args() const { return args_; }
+
+    const AtomicNode* ProcCall::get_proc() const { return proc_.get(); }
+
+
 }

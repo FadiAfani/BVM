@@ -27,6 +27,8 @@ namespace BVM {
             static uint32_t ret();
             static uint32_t jmp_if_false(uint8_t rd, uint32_t rt);
             static uint32_t load_const(uint8_t rd, uint16_t idx);
+            static uint32_t call(uint8_t rd);
+            static uint32_t call_native(uint8_t rd, uint8_t nargs, uint8_t idx);
     };
 
 }

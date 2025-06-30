@@ -1,6 +1,8 @@
 #ifndef LIST_AST_H
 #define LIST_AST_H
 
+#include "bolt_virtual_machine/vm.hpp"
+#include "lisp/lexer.hpp"
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
@@ -40,6 +42,7 @@ namespace Lisp {
         {"+", ExprType::Plus},
         {"-", ExprType::Minus},
         {"*", ExprType::Mul},
+        {"/", ExprType::Div},
         {">", ExprType::Bt},
         {">=", ExprType::Bte},
         {"<", ExprType::Lt},
@@ -146,19 +149,9 @@ namespace Lisp {
         Qoute,
         Set,
         IfExpr,
-        BinaryExpr,
-        Plus,
-        Minus,
-        Mul,
-        Div,
-        Bt,
-        Lt,
-        Bte,
-        Lte,
-        Eq,
-        Ne,
         ListExpr,
         Atomic,
+        ProcCall,
     };
 
     class ASTNode {
@@ -175,12 +168,15 @@ namespace Lisp {
 
     struct Symbol {
         uint8_t reg;
-        const ASTNode* node;
+        const BVM::BoltValue* binding;
+        SymbolType type;
     };
 
+    // NOTE: change this to a class 
     struct Scope {
         Scope* parent;
         std::unordered_map<std::string, Symbol> symbol_table;
+        int n_vars = 0;
 
         const Symbol* lookup(const std::string& name) const;
         void insert(const std::string id, Symbol sym);
@@ -281,6 +277,19 @@ namespace Lisp {
             const ASTNode* get_b();
             const std::string print() const override;
 
+    };
+
+    class ProcCall : public ASTNode {
+        private:
+            std::vector<std::unique_ptr<ASTNode>> args_;
+            std::unique_ptr<AtomicNode> proc_;
+        public:
+            ProcCall();
+            void add_arg(std::unique_ptr<ASTNode> arg);
+            void set_proc(std::unique_ptr<AtomicNode> proc);
+            const std::vector<std::unique_ptr<ASTNode>>& get_args() const;
+            const AtomicNode* get_proc() const;
+            const std::string print() const override;
     };
 
 }

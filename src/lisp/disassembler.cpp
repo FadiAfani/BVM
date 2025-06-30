@@ -5,7 +5,7 @@
 
 namespace Lisp {
 
-    Disassembler::Disassembler(const FuncObj* func) : func_(func) {}
+    Disassembler::Disassembler(const BVM::FuncObj* func) : func_(func) {}
 
     const std::string& Disassembler::disassemble() {
         for (size_t i = 0; i < func_->instructions.size();i++) {
@@ -62,6 +62,12 @@ namespace Lisp {
                     break;
                 case BVM::Opcode::OpConst:
                     out_ += std::format("const {}, {}\n", rd, inst >> 16);
+                    break;
+                case BVM::Opcode::OpCallNative:
+                    out_ += std::format("call_native {}, {}, {}\n", rd, rt, rs);
+                    break;
+                case BVM::Opcode::OpCall:
+                    out_ += std::format("call {}\n", rd);
                     break;
                 default:
                     throw std::runtime_error("disassembler: Not Implemented");

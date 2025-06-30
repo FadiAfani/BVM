@@ -20,7 +20,7 @@ namespace BVM {
     VirtualMachine::~VirtualMachine() {}
 
     void VirtualMachine::setup_entry_point() {
-        Callable* main = callables_.at(0).get();
+        FuncObj* main = callables_.at(0).get();
         BoltValue prev_fp = {.as_int = -1, .type = BoltType::Integer };
         BoltValue ret_addr = {.as_int = 0, .type = BoltType::Integer };
         BoltValue func = {.as_func = main, .type = BoltType::Function };

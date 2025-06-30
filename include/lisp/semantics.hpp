@@ -9,6 +9,31 @@
 
 namespace Lisp {
 
+    enum class NativeFunc {
+        Add,
+        Sub,
+        Div,
+        Mul,
+        Bt,
+        Lt,
+        Bte,
+        Lte,
+        Eq,
+        Ne,
+    };
+
+    const std::unordered_map<std::string, NativeFunc> native_funcs = {
+        {"+", NativeFunc::Add},
+        {"-", NativeFunc::Sub},
+        {"/", NativeFunc::Div},
+        {"*", NativeFunc::Mul},
+        {">", NativeFunc::Bt},
+        {">=", NativeFunc::Bte},
+        {"<", NativeFunc::Lt},
+        {"<=", NativeFunc::Lte},
+        {"=", NativeFunc::Eq},
+        {"/=", NativeFunc::Ne},
+    };
 
 
 
@@ -27,8 +52,7 @@ namespace Lisp {
             std::unique_ptr<Define> verify_define(std::unique_ptr<List> sexpr);
             std::unique_ptr<Lambda> verify_lambda(std::unique_ptr<List> sexpr);
             std::unique_ptr<IfExpr> verify_if(std::unique_ptr<List> sexpr);
-            std::unique_ptr<BinaryExpr> verify_binary(std::unique_ptr<List> sexpr);
-            std::unique_ptr<ListExpr> verify_list_expr(std::unique_ptr<List> sexpr);
+            std::unique_ptr<ProcCall> verify_proc_call(std::unique_ptr<List> sexpr);
             bool has_value(std::unique_ptr<SExpr> sexpr);
     };
 

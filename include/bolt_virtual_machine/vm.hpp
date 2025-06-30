@@ -1,6 +1,7 @@
 #ifndef BVM_VIRTUAL_MACHINE_H
 #define BVM_VIRTUAL_MACHINE_H
 
+#include "bolt_virtual_machine/emitter.h"
 #include <functional>
 #include <string>
 #define STACK_SIZE (1 << 12)
@@ -44,18 +45,31 @@ namespace BVM {
 
     };
 
-    struct Callable {
-        int n_locals;
-        int row;
-        int col;
-        std::string name;
-        std::vector<uint32_t> code;
-        std::vector<std::pair<int, int>> locals_pos;
+    enum class ObjType {
+        List,
+        Function,
+    };
+
+    struct Obj {
+        ObjType type;
+    };
+
+    struct FuncObj : Obj {
+        int arity;
+        unsigned int n_locals;
         std::vector<BoltValue> consts;
+        std::vector<uint32_t> instructions;
+        unsigned int next_reg;
+    };
+
+    struct ListObj : Obj {
+        std::vector<int> erefs;
 
     };
 
-    // not currently used
+
+
+
     struct BoltValue {
         union {
             bool as_bool;
@@ -63,7 +77,7 @@ namespace BVM {
             double as_double;
             Cons* as_cons;
             char* as_symbol;
-            Callable* as_func;
+            FuncObj* as_func;
         };
         BoltType type;
 
@@ -81,28 +95,22 @@ namespace BVM {
         }
     };
 
-
     class VirtualMachine {
         private:
-            /* maybe a union is a bit cleaner compared to a u64..
-             * u64s can enable support for smaller types (u8, u16 ...)
-             * without type promotion by value packing
-             * which might be hindered by the use of a union 
-             */
             BoltValue stack_[STACK_SIZE];
             size_t ip_ = 0;
             int16_t sp_ = STACK_SIZE;
             int16_t fp_ = STACK_SIZE;
-            std::vector<std::unique_ptr<Callable>> callables_;
+            std::vector<std::unique_ptr<FuncObj>> callables_;
         public:
             VirtualMachine();
             ~VirtualMachine();
             void load_program(std::vector<uint32_t> program);
-            inline void load_callable(std::unique_ptr<Callable> callable) {
+            inline void load_callable(std::unique_ptr<FuncObj> callable) {
                 callables_.push_back(std::move(callable));
             }
             void setup_entry_point();
-            inline Callable* get_callable(size_t id) {
+            inline FuncObj* get_callable(size_t id) {
                 return callables_.at(id).get();
             }
             inline BoltValue get_stack_entry(size_t entry) {
@@ -111,7 +119,7 @@ namespace BVM {
 
             // god help us all if the compiler decides not to inline these
             inline uint32_t fetch() noexcept {
-                return stack_[fp_].as_func->code[ip_++];
+                return stack_[fp_].as_func->instructions[ip_++];
             }
 
             static inline Opcode decode_op(uint32_t inst) noexcept {
@@ -149,21 +157,5 @@ namespace BVM {
     };
 }
 
-
-namespace std {
-    template <>
-    struct hash<BVM::BoltValue> {
-        size_t operator()(const BVM::BoltValue& k) const {
-            switch (k.type) {
-                case BVM::BoltType::Integer: return hash<int64_t>()(k.as_int);
-                case BVM::BoltType::Float: return hash<double>()(k.as_double);
-                case BVM::BoltType::Boolean: return hash<bool>()(k.as_bool);
-                case BVM::BoltType::Symbol: return hash<std::string>()(std::string(k.as_symbol));
-                default: throw std::runtime_error("BoltValue hash not Implemented");
-            }
-            return 0;
-        }
-    };
-}
 
 #endif

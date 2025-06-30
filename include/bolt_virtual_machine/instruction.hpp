@@ -20,6 +20,8 @@ namespace BVM {
         OpLte,
         OpJmpIfFalse,
         OpConst,
+        OpCall,
+        OpCallNative,
     };
 }
 

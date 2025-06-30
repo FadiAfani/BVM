@@ -23,34 +23,15 @@ namespace Lisp {
      * [instructions]
      * */
 
-    enum class ObjType {
-        List,
-        Function,
-    };
-
-    struct Obj {
-        ObjType type;
-    };
-
-    struct FuncObj : Obj {
-        unsigned int n_locals;
-        std::unordered_map<BVM::BoltValue, int> consts;
-        std::vector<uint32_t> instructions;
-        unsigned int next_reg;
-    };
-
-    struct ListObj : Obj {
-        std::vector<int> erefs;
-
-    };
-
     class Compiler {
+
+
 
         private:
             std::ofstream out_;
             std::stack<const Scope*> active_scopes_;
-            std::vector<std::unique_ptr<FuncObj>> func_objs_;
-            std::stack<FuncObj*> active_objs_;
+            std::vector<std::unique_ptr<BVM::FuncObj>> func_objs_;
+            std::stack<BVM::FuncObj*> active_objs_;
 
         public:
             Compiler();
@@ -61,16 +42,17 @@ namespace Lisp {
             void compile_define(const Define* node);
             void compile_lambda(const Lambda* node);
             void compile_if(const IfExpr* node);
-            void compile_binary(const BinaryExpr* node);
+            void compile_list_expr(const ListExpr* node);
+            void compile_proc_call(const ProcCall* node);
 
-            inline void free_reg(unsigned int n_regs) {
+            inline void dealloc_expr(const ASTNode* expr) {
                 auto fo = active_objs_.top();
-                if (n_regs > MAX_REGS - fo->next_reg)
-                    throw std::logic_error("not enough registers to free");
-                fo->next_reg -= n_regs;
+                if (expr->get_type() != NodeType::Atomic 
+                        || static_cast<const AtomicNode*>(expr)->get_value()->get_type() == SExprType::SymbolLiteral)
+                    fo->next_reg--;
             }
 
-            const std::vector<std::unique_ptr<FuncObj>>& get_objs();
+            const std::vector<std::unique_ptr<BVM::FuncObj>>& get_objs();
 
     };
 }

@@ -7,6 +7,14 @@
 
 namespace Lisp {
 
+    enum class SymbolType {
+        NativeProc,
+        Proc,
+        Variable,
+        SpecialForm,
+    };
+
+
     const std::unordered_set<std::string> reserved_keywords = {
         "if", "lambda", "define", "let", "begin", "cond", "and", "or",
         "set!", "quote", "+", "-", "/", "*", ">", ">=", "<", "<=", "=", "/="

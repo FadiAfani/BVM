@@ -1,6 +1,7 @@
 #include <cassert>
 #include<lisp/semantics.hpp>
 #include <stdexcept>
+#include <format>
 
 namespace Lisp {
 
@@ -11,6 +12,23 @@ namespace Lisp {
     
     std::unique_ptr<Lambda> SemanticAnalyzer::verify() {
         auto main = std::make_unique<Lambda>();
+        Scope& globals = main->get_scope();
+        globals.symbol_table = {
+            {"lambda", {0, nullptr, SymbolType::SpecialForm}},
+            {"if", {0, nullptr, SymbolType::SpecialForm}},
+            {"define", {0, nullptr, SymbolType::SpecialForm}},
+            {"cons", {0, nullptr, SymbolType::SpecialForm}},
+            {"+", {0, nullptr, SymbolType::NativeProc}},
+            {"-", {0, nullptr, SymbolType::NativeProc}},
+            {"*", {0, nullptr, SymbolType::NativeProc}},
+            {"/", {0, nullptr, SymbolType::NativeProc}},
+            {"=", {0, nullptr, SymbolType::NativeProc}},
+            {"/=", {0, nullptr, SymbolType::NativeProc}},
+            {">", {0, nullptr, SymbolType::NativeProc}},
+            {">=", {0, nullptr, SymbolType::NativeProc}},
+            {"<", {0, nullptr, SymbolType::NativeProc}},
+            {"<=", {0, nullptr, SymbolType::NativeProc}},
+        };
         scopes_.push(&main->get_scope());
 
         for (auto& expr : program_) {
@@ -18,7 +36,7 @@ namespace Lisp {
             main->insert_expr(std::move(node));
         }
 
-        return std::move(main);
+        return main;
     }
 
 
@@ -41,18 +59,12 @@ namespace Lisp {
     }
 
     std::unique_ptr<AtomicNode> SemanticAnalyzer::verify_symbol(std::unique_ptr<SymbolAtom> sexpr) {
+        Scope* cur = scopes_.top();
+        const std::string& sym = sexpr->get_value();
+        if (cur->lookup(sym) == nullptr)
+            throw std::runtime_error(std::format("symbol '{}' is not defined", sym.data()));
 
-        Scope* env = scopes_.top();
-        if (!reserved_keywords.contains(sexpr->get_value())) {
-            if (env->symbol_table.size() >= MAX_REGS)
-                throw std::runtime_error("Can't have more than 255 active locals");
-            auto name = sexpr->get_value();
-            uint8_t reg = env->symbol_table.size();
-            auto node = std::make_unique<AtomicNode>(std::move(sexpr));
-            env->symbol_table[name] = {reg, node.get()};
-            return std::move(node);
-        }
-        return nullptr;
+        return std::make_unique<AtomicNode>(std::move(sexpr));
     }
 
     std::unique_ptr<ASTNode> SemanticAnalyzer::verify_list(std::unique_ptr<List> sexpr) {
@@ -62,40 +74,33 @@ namespace Lisp {
 
         const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
 
-        switch(reserved_funcs.at(name)) {
-            case ExprType::Define:
-                return verify_define(std::move(sexpr));
-            case ExprType::Lambda:
-                return verify_lambda(std::move(sexpr));
-            case ExprType::If:
-                return verify_if(std::move(sexpr));
-            case ExprType::Plus:
-            case ExprType::Minus:
-            case ExprType::Div:
-            case ExprType::Mul:
-            case ExprType::Bt:
-            case ExprType::Lt:
-            case ExprType::Bte:
-            case ExprType::Lte:
-            case ExprType::Eq:
-            case ExprType::Ne:
-                return verify_binary(std::move(sexpr));
-            case ExprType::List:
-                return verify_list_expr(std::move(sexpr));
+        if (reserved_funcs.contains(name)) {
 
-            default:
-                std::logic_error("verify_list: Not Implemented");
+            switch(reserved_funcs.at(name)) {
+                case ExprType::Define:
+                    return verify_define(std::move(sexpr));
+                case ExprType::Lambda:
+                    return verify_lambda(std::move(sexpr));
+                case ExprType::If:
+                    return verify_if(std::move(sexpr));
+                default:
+                    std::logic_error("verify_list: Not Implemented");
+            }
+
         }
-        return nullptr;
+
+        return verify_proc_call(std::move(sexpr));
     }
 
 
     std::unique_ptr<Define> SemanticAnalyzer::verify_define(std::unique_ptr<List> sexpr) {
+        Scope* scope = scopes_.top();
         auto& elems = sexpr->get_elems();
         auto node = std::make_unique<Define>();
         if (elems.size() != 3 || elems[1]->get_type() != SExprType::SymbolLiteral)
             throw std::runtime_error("malformed define");
-        auto sym = static_cast<SymbolAtom*>(elems[1].get());
+        SymbolAtom* sym = static_cast<SymbolAtom*>(elems[1].get());
+        scope->insert(sym->get_value(), {static_cast<uint8_t>(scope->n_vars), nullptr, SymbolType::Variable});
         auto symbol = verify_sexpr(sexpr->move_elem(1));
         auto e = sexpr->move_elem(2);
         auto expr = verify_sexpr(std::move(e));
@@ -103,24 +108,9 @@ namespace Lisp {
         node->set_id(sym->get_value());
         node->set_expr(std::move(expr));
 
-        return std::move(node);
+        return node;
     }
 
-    std::unique_ptr<BinaryExpr> SemanticAnalyzer::verify_binary(std::unique_ptr<List> sexpr) {
-        auto& elems = sexpr->get_elems();
-        auto node = std::make_unique<BinaryExpr>();
-        if (elems.size() != 3) 
-            throw std::runtime_error("malformed operation");
-
-        auto lhs = verify_sexpr(sexpr->move_elem(1));
-        auto rhs = verify_sexpr(sexpr->move_elem(2));
-        node->set_left(std::move(lhs));
-        node->set_right(std::move(rhs));
-        auto sym = elems[0].get();
-        node->set_op(reserved_funcs.at(static_cast<SymbolAtom*>(sym)->get_value()));
-
-        return std::move(node);
-    }
 
     std::unique_ptr<IfExpr> SemanticAnalyzer::verify_if(std::unique_ptr<List> sexpr) {
         auto& elems = sexpr->get_elems();
@@ -135,7 +125,7 @@ namespace Lisp {
         node->set_texpr(std::move(texpr));
         node->set_fexpr(std::move(fexpr));
 
-        return std::move(node);
+        return node;
 
     }
 
@@ -162,18 +152,30 @@ namespace Lisp {
         }
 
 
-        return std::move(node);
+        return node;
     }
+    
+    std::unique_ptr<ProcCall> SemanticAnalyzer::verify_proc_call(std::unique_ptr<List> sexpr) {
+        auto first = sexpr->get_elems().at(0).get();
+        const std::string& name = static_cast<SymbolAtom*>(first)->get_value();
+        auto scope = scopes_.top();
 
-    std::unique_ptr<ListExpr> SemanticAnalyzer::verify_list_expr(std::unique_ptr<List> sexpr) {
-        auto node = std::make_unique<ListExpr>();
+        if (!native_funcs.contains(name) && scope->lookup(name) == nullptr)
+            throw std::runtime_error(std::format("'{}' is not defined", name.data()));
 
-        for (size_t i = 1; i < sexpr->get_elems().size(); i++) {
+        auto& elems = sexpr->get_elems();
+        std::unique_ptr<ProcCall> node = std::make_unique<ProcCall>();
+        std::unique_ptr<AtomicNode> id = verify_symbol(std::unique_ptr<SymbolAtom>(static_cast<SymbolAtom*>(sexpr->move_elem(0).release())));
+
+        node->set_proc(std::move(id));
+
+        for (size_t i = 1; i < elems.size(); i++) {
             auto e = verify_sexpr(sexpr->move_elem(i));
-            node->add_elem(std::move(e));
+            node->add_arg(std::move(e));
         }
 
         return node;
+
     }
 
 }

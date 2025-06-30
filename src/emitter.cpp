@@ -30,5 +30,13 @@ namespace BVM {
         return static_cast<uint8_t>(Opcode::OpConst) | rd << 8 | idx << 16;
     }
 
+    uint32_t Emitter::call(uint8_t rd) {
+        return static_cast<uint8_t>(Opcode::OpCall) | rd << 8;
+    }
+
+    uint32_t Emitter::call_native(uint8_t rd, uint8_t nargs, uint8_t idx) {
+        return static_cast<uint8_t>(Opcode::OpCallNative) | rd << 8 | nargs << 16 | idx << 24;
+    }
+
 
 }

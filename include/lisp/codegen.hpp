@@ -30,11 +30,11 @@ namespace Lisp {
         private:
             std::ofstream out_;
             std::stack<const Scope*> active_scopes_;
-            std::vector<std::unique_ptr<BVM::FuncObj>> func_objs_;
-            std::stack<BVM::FuncObj*> active_objs_;
+            std::vector<std::unique_ptr<BVM::Prototype>> func_objs_;
+            std::stack<BVM::Prototype*> active_objs_;
 
         public:
-            Compiler();
+            Compiler(std::string filename);
             void compile(const Lambda* node);
             unsigned int compile_expr(const ASTNode* node);
             void compile_atom(const AtomicNode* node);
@@ -48,11 +48,11 @@ namespace Lisp {
             inline void dealloc_expr(const ASTNode* expr) {
                 auto fo = active_objs_.top();
                 if (expr->get_type() != NodeType::Atomic 
-                        || static_cast<const AtomicNode*>(expr)->get_value()->get_type() == SExprType::SymbolLiteral)
+                        || static_cast<const AtomicNode*>(expr)->get_value()->get_type() != SExprType::SymbolLiteral)
                     fo->next_reg--;
             }
 
-            const std::vector<std::unique_ptr<BVM::FuncObj>>& get_objs();
+            const std::vector<std::unique_ptr<BVM::Prototype>>& get_objs();
 
     };
 }

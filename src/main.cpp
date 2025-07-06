@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
     auto nodes = parser.parse();
     Lisp::SemanticAnalyzer sa(nodes);
     std::unique_ptr<Lisp::Lambda> ap = sa.verify();
-    Lisp::Compiler compiler;
+    Lisp::Compiler compiler("main.lsp");
 
     printf("%ld\n", ap->get_exprs().size());
     compiler.compile(ap.get());

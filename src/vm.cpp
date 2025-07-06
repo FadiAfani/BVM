@@ -1,6 +1,7 @@
 #include "bolt_virtual_machine/vm.hpp"
 #include "bolt_virtual_machine/instruction.hpp"
 #include <cstdint>
+#include <fstream>
 #include <stdexcept>
 
 
@@ -14,21 +15,44 @@
     else \
         return Interrupt::IncompatibleTypes; \
 
+
 namespace BVM {
 
     VirtualMachine::VirtualMachine() {}
     VirtualMachine::~VirtualMachine() {}
 
+
+    /* Bolt File Layout 
+     * n_funcs
+     * [Prototypes]
+     * */
+
+    /* Protoype Structure
+     * n_locals
+     * n_consts
+     * [constants]
+     * n_insts
+     * [instructions]
+     * */
+
+    void VirtualMachine::load_program(const char* file) {
+        std::ifstream in(file, std::ios::binary);
+        int n;
+        in.read(reinterpret_cast<char*>(&n), 4);
+
+    }
+
     void VirtualMachine::setup_entry_point() {
-        FuncObj* main = callables_.at(0).get();
+        Prototype* main = callables_.at(0).get();
+        ClosureObj main_clsr = {.type = ClosureObj::CLSR_VIRTUAL, .as_virtual = {.proto = main} };
         BoltValue prev_fp = {.as_int = -1, .type = BoltType::Integer };
         BoltValue ret_addr = {.as_int = 0, .type = BoltType::Integer };
-        BoltValue func = {.as_func = main, .type = BoltType::Function };
+        BoltValue func = {.as_func = &main_clsr, .type = BoltType::Closure};
         push(prev_fp);
         push(ret_addr);
         push(func);
         fp_ = STACK_SIZE - 1;
-        sp_ -= main->n_locals; // callable_ref + prev_fp + return addr
+        sp_ -= main->next_reg; // callable_ref + prev_fp + return addr
 
     };
 
@@ -48,29 +72,6 @@ namespace BVM {
         rt = decode_rt(inst);
 
         switch(op) {
-            case Opcode::OpMul:
-                rtv = get_register_value(rt);
-                rsv = get_register_value(rs);
-                BINARY_OP(*, rd, rtv, rsv);
-                break;
-            case Opcode::OpDiv:
-                rtv = get_register_value(rt);
-                rsv = get_register_value(rs);
-                BINARY_OP(/, rd, rtv, rsv);
-                break;
-
-            case Opcode::OpSub:
-                rtv = get_register_value(rt);
-                rsv = get_register_value(rs);
-                BINARY_OP(-, rd, rtv, rsv);
-                break;
-
-                break;
-            case Opcode::OpAdd:
-                rtv = get_register_value(rt);
-                rsv = get_register_value(rs);
-                BINARY_OP(+, rd, rtv, rsv);
-                break;
             case Opcode::OpMov:
                 set_register_value(rd, get_register_value(rt));
                 break;
@@ -79,11 +80,30 @@ namespace BVM {
                 ip_ = stack_[fp_ + 1].as_int;
                 sp_ = fp_;
                 fp_ = stack_[fp_].as_int;
+                stack_[sp_] = get_register_value(rd);
                 break;
 
-            case Opcode::OpSchedule:
-                throw std::runtime_error("Not Implemented\n");
+            case Opcode::OpCall:
+            {
+                BoltValue f = get_register_value(rd);
+                uint16_t n_args = static_cast<uint16_t>(inst); // get lowest 16 bits
+                if (f.as_func->type == ClosureObj::CLSR_VIRTUAL) {
+                    push({.as_int = fp_, .type = BoltType::Integer});
+                    push({.as_int = static_cast<int>(ip_), .type = BoltType::Integer});
+                    push({.as_func = f.as_func, .type = BoltType::Closure});
+                    fp_ = sp_ + 3;
+                    sp_ -= n_args;
+                    ip_ = 0;
+                } else {
+                    push({.as_int = fp_, .type = BoltType::Integer});
+                    push({.as_int = static_cast<int>(ip_), .type = BoltType::Integer});
+                    fp_ = sp_ + 2;
+                    sp_ -= n_args;
+                }
                 break;
+            }
+            default:
+                throw std::runtime_error("opcode not implemented or recognized");
 
         }
         return Interrupt::Ok;

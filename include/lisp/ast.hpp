@@ -9,7 +9,6 @@
 #include <vector>
 namespace Lisp {
 
-
     enum class ExprType {
         Lambda,
         Define,
@@ -170,6 +169,7 @@ namespace Lisp {
         uint8_t reg;
         const BVM::BoltValue* binding;
         SymbolType type;
+        BVM::Primitives pid;
     };
 
     // NOTE: change this to a class 

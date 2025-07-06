@@ -7,13 +7,45 @@
 namespace Lisp {
 
 
-    const std::vector<std::unique_ptr<BVM::FuncObj>>& Compiler::get_objs() { return func_objs_; }
+    const std::vector<std::unique_ptr<BVM::Prototype>>& Compiler::get_objs() { return func_objs_; }
 
-    Compiler::Compiler() {}
+    Compiler::Compiler(std::string filename) {
+        out_.open(filename, std::ios::binary);
+    }
 
 
     void Compiler::compile(const Lambda* program) {
         compile_lambda(program);
+
+        // write functions to output
+        size_t n_protos = func_objs_.size();
+        out_.write(reinterpret_cast<const char*>(&n_protos), 8);
+        for (auto& f : func_objs_) {
+            int n_consts = f->consts.size();
+            long n_insts = f->instructions.size();
+            out_.write(reinterpret_cast<const char*>(&f->next_reg), 4);
+            out_.write(reinterpret_cast<const char*>(&n_consts), 4);
+            for (auto v : f->consts) {
+                out_.write(reinterpret_cast<const char*>(&v.type), 4);
+                switch(v.type) {
+                    case BVM::BoltType::Boolean:
+                        out_.write(reinterpret_cast<const char*>(&v.as_bool), 1);
+                        break;
+                    case BVM::BoltType::Float:
+                        out_.write(reinterpret_cast<const char*>(&v.as_double), sizeof(double));
+                        break;
+                    case BVM::BoltType::Integer:
+                        out_.write(reinterpret_cast<const char*>(&v.as_int), sizeof(int));
+                        break;
+                    default:
+                        std::runtime_error("compile: not Implemented");
+                }
+            }
+            out_.write(reinterpret_cast<const char*>(&n_insts), 8);
+            for ( uint32_t inst : f->instructions) {
+                out_.write(reinterpret_cast<const char*>(&inst), 4);
+            }
+        }
     }
 
     unsigned int Compiler::compile_expr(const ASTNode* node) {
@@ -49,11 +81,11 @@ namespace Lisp {
     }
 
     void Compiler::compile_lambda(const Lambda* node) {
-        auto nfo = std::make_unique<BVM::FuncObj>();
+        auto nfo = std::make_unique<BVM::Prototype>();
         auto& params = node->get_parameters();
         int arity = params.size();
         int n_locals = node->get_const_scope().symbol_table.size();
-        BVM::FuncObj* ptr = nfo.get();
+        BVM::Prototype* ptr = nfo.get();
         ptr->n_locals = n_locals;
 
         // pre-allocate virtual registers for variables
@@ -135,7 +167,7 @@ namespace Lisp {
 
     void Compiler::compile_if(const IfExpr* node) {
         auto fo = active_objs_.top();
-        unsigned int r1, r2, r3, if_reg = fo->next_reg;
+        unsigned int r1, r2, r3, if_reg = fo->next_reg - 1;
         size_t if_pos, else_pos;
 
         r1 = compile_expr(node->get_cond()); 
@@ -146,13 +178,12 @@ namespace Lisp {
         fo->instructions.push_back(0);
         else_pos = fo->instructions.size();
         r3 = compile_expr(node->get_fexpr());
-        fo->instructions[else_pos - 1] = BVM::Emitter::mov(if_reg, r2);
-        fo->instructions.push_back(BVM::Emitter::mov(if_reg, r3));
-        fo->instructions[if_pos - 1] = BVM::Emitter::jmp_if_false(r1, else_pos - if_pos);
-        fo->next_reg = if_reg;
         dealloc_expr(node->get_cond());
         dealloc_expr(node->get_texpr());
         dealloc_expr(node->get_fexpr());
+        fo->instructions[else_pos - 1] = BVM::Emitter::mov(if_reg, r2);
+        fo->instructions.push_back(BVM::Emitter::mov(if_reg, r3));
+        fo->instructions[if_pos - 1] = BVM::Emitter::jmp_if_false(r1, else_pos - if_pos);
     }
 
     void Compiler::compile_proc_call(const ProcCall* node) {
@@ -160,16 +191,17 @@ namespace Lisp {
         const Scope* scope = active_scopes_.top();
         auto atom = node->get_proc()->get_value();
         const std::string& name = static_cast<const SymbolAtom*>(atom)->get_value();
+        unsigned int proc_pos = fo->next_reg - 1;
 
         for (auto& arg : node->get_args()) {
             compile_expr(arg.get());
         }
 
         if (scope->lookup(name)->type == SymbolType::NativeProc) {
-            fo->instructions.push_back(BVM::Emitter::call_native(fo->next_reg, node->get_args().size(), 
+            fo->instructions.push_back(BVM::Emitter::call_native(proc_pos, node->get_args().size(), 
                         static_cast<uint8_t>(native_funcs.at(name))));
         } else {
-            fo->instructions.push_back(BVM::Emitter::call(fo->next_reg));
+            fo->instructions.push_back(BVM::Emitter::call(proc_pos));
         }
 
         for (auto& arg : node->get_args()) {
